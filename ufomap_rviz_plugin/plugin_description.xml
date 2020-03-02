@@ -1,0 +1,12 @@
+<library path="lib/libufomap_rviz_plugin">
+  <class name="ufomap_rviz_plugin/Octree" type="ufomap_rviz_plugin::OctreeDisplay" base_class_type="rviz::Display">
+    <description>
+      Displays 3D occupancy octree.
+    </description>
+  </class>
+  <class name="ufomap_rviz_plugin/OctreeRGB" type="ufomap_rviz_plugin::OctreeRGBDisplay" base_class_type="rviz::Display">
+    <description>
+      Displays 3D occupancy RGB octree.
+    </description>
+  </class>
+</library>

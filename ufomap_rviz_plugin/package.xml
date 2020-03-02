@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ufomap_rviz_plugin</name>
+  <version>1.0.0</version>
+  <description>The ufomap_rviz_plugin package</description>
+
+  <maintainer email="dduberg@kth.se">Daniel Duberg</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">https://github.com/danielduberg/UFOMap</url>
+
+  <author email="dduberg@kth.se">Daniel Duberg</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+  <depend>rviz</depend>
+  <depend>ufomap</depend>
+  <depend>ufomap_msgs</depend>
+  <depend>ufomap_ros</depend>
+
+  <depend>qtbase5-dev</depend>
+  <depend>libqt5-core</depend>
+  <depend>libqt5-widgets</depend>
+
+
+  <export>
+    <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
+</package>
