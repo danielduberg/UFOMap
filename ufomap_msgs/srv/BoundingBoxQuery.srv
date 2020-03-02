@@ -1,0 +1,7 @@
+# Clear a region specified by a global axis-aligned bounding box in stored UFOMap
+
+# Minimum corner point of axis-aligned bounding box in global frame
+geometry_msgs/Point min
+# Maximum corner point of axis-aligned bounding box in global frame
+geometry_msgs/Point max
+---

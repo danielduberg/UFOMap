@@ -1,0 +1,3 @@
+# Get the map as a UFOMap
+---
+ufomap_msgs/Ufomap map
