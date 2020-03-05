@@ -7,6 +7,26 @@
 #include <type_traits>
 namespace ufomap
 {
+template <typename, typename = void>
+struct hasBegin : std::false_type
+{
+};
+
+template <typename T>
+struct hasBegin<T, std::void_t<decltype(((T*)nullptr)->begin())>> : std::true_type
+{
+};
+
+template <typename, typename = void>
+struct hasEnd : std::false_type
+{
+};
+
+template <typename T>
+struct hasEnd<T, std::void_t<decltype(((T*)nullptr)->end())>> : std::true_type
+{
+};
+
 template <typename TREE, typename INNER_NODE, typename LEAF_NODE, typename BOUNDING_TYPE>
 class TreeIterator : public BaseIterator<TREE, INNER_NODE, LEAF_NODE>
 {
@@ -115,12 +135,31 @@ protected:
 		// 				 (bbx_min_.toDepth(node.getDepth()) <= node.code && bbx_max_ >= node.code);
 		// }
 
+		if (!BaseIterator<TREE, INNER_NODE, LEAF_NODE>::validNode(node))
+		{
+			return false;
+		}
+
 		Point3 center = this->tree_->keyToCoord(node.code.toKey());
 		float half_size = this->tree_->getNodeHalfSize(node.getDepth());
-		return BaseIterator<TREE, INNER_NODE, LEAF_NODE>::validNode(node) &&
-					 ufomap_geometry::intersects(
-							 ufomap_geometry::AABB(center - half_size, center + half_size),
-							 bounding_type_);
+		ufomap_geometry::AABB aabb(center - half_size, center + half_size);
+
+		if constexpr (hasBegin<BOUNDING_TYPE>::value && hasEnd<BOUNDING_TYPE>::value)
+		{
+			for (auto it = bounding_type_.begin(), it_end = bounding_type_.end(); it != it_end;
+					 ++it)
+			{
+				if (ufomap_geometry::intersects(aabb, *it))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		else
+		{
+			return ufomap_geometry::intersects(aabb, bounding_type_);
+		}
 	}
 
 protected:
