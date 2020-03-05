@@ -9,7 +9,7 @@
 
   <license>BSD</license>
 
-  <url type="website">https://github.com/danielduberg/UFOMap</url>
+  <url type="website">https://github.com/danielduberg/ufomap_msgs</url>
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>geometry_msgs</depend>

@@ -16,7 +16,7 @@ find_package(ufomap REQUIRED)
 set(CMAKE_AUTOMOC ON)
 
 ## This plugin includes Qt widgets, so we must include Qt.
-## We will use the version that rviz used so they are compatible.
+## We'll use the version that rviz used so they are compatible.
 if(rviz_QT_VERSION VERSION_LESS "5")
   # Should be error
   message(STATUS "Using Qt4 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
@@ -30,8 +30,8 @@ else()
   set(QT_LIBRARIES Qt5::Widgets)
 endif()
 
-## If you prefer the Qt signals and slots to avoid defining "emit", "slots",
-## etc because they can conflict with boost signals, define QT_NO_KEYWORDS here.
+## I prefer the Qt signals and slots to avoid defining "emit", "slots",
+## etc because they can conflict with boost signals, so define QT_NO_KEYWORDS here.
 # add_definitions(-DQT_NO_KEYWORDS)
 
 catkin_package(

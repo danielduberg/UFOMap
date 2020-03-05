@@ -233,7 +233,6 @@ protected:
 	void setColor(float value, float min_value, float max_value, float color_factor,
 								rviz::PointCloud::Point& point) const
 	{
-		// Copied from OctoMap
 		int i;
 		double m, n, f;
 
@@ -250,9 +249,7 @@ protected:
 		i = floor(h);
 		f = h - i;
 		if (!(i & 1))
-		{
-			f = 1 - f;
-		}
+			f = 1 - f;  // if i is even
 		m = v * (1 - s);
 		n = v * (1 - s * f);
 

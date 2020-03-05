@@ -4,9 +4,6 @@ Header header
 # Flag to denote a binary (only free/occupied/unknown) or full occupancy Octree
 bool binary
 
-# Flag to denote a compressed message
-bool compressed
-
 # Class id of the contained Octree
 string id
 
@@ -14,13 +11,7 @@ string id
 float32 resolution
 
 # Number of depth levels
-uint8 depth_levels
-
-# Threshold for occupancy
-float32 occupancy_thres
-
-# Threshold for free
-float32 free_thres
+uint8 depth_levels # Should be uint8
 
 # Binary serialization of Octree, use conversions.h to read and write octrees
 int8[] data
