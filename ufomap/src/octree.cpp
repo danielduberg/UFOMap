@@ -37,7 +37,8 @@ Octree::Octree(const Octree& other)
 //
 
 bool Octree::readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
-																	 unsigned int current_depth, bool from_octomap)
+																	 unsigned int current_depth, float occupancy_thres_log,
+																	 float free_thres_log, bool from_octomap)
 {
 	std::bitset<8> children_data_1;
 	std::bitset<8> children_data_2;
@@ -118,7 +119,8 @@ bool Octree::readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& no
 				else if (1 == children_data_1[i] && 1 == children_data_2[i])
 				{
 					// Has children
-					readBinaryNodesRecurs(s, child, current_depth - 1, from_octomap);
+					readBinaryNodesRecurs(s, child, current_depth - 1, occupancy_thres_log,
+																free_thres_log, from_octomap);
 				}
 			}
 		}

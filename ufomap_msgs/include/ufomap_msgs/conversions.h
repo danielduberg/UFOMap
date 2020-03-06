@@ -12,7 +12,8 @@ bool msgToMap(const Ufomap& msg, TreeType& tree)
 	if (!msg.data.empty())
 	{
 		data_stream.write((const char*)&msg.data[0], msg.data.size());
-		return tree.readData(data_stream, msg.resolution, msg.depth_levels, msg.binary);
+		return tree.readData(data_stream, msg.resolution, msg.depth_levels,
+												 msg.occupancy_thres, msg.free_thres, msg.compressed, msg.binary);
 	}
 }
 

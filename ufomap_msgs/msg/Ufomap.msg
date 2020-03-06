@@ -13,5 +13,14 @@ float32 resolution
 # Number of depth levels
 uint8 depth_levels # Should be uint8
 
+# Occupancy threshold
+float32 occupancy_thres
+
+# Free threshold
+float32 free_thres
+
+# If data is compressed
+bool compressed
+
 # Binary serialization of Octree, use conversions.h to read and write octrees
 int8[] data

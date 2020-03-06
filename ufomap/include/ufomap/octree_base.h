@@ -16,7 +16,7 @@
 #include <type_traits>
 
 // Compression
-// #include <lz4.h>
+#include <lz4.h>
 
 namespace ufomap
 {
@@ -1554,18 +1554,21 @@ public:
 		unsigned int depth_levels;
 		float occupancy_thres;
 		float free_thres;
+		bool compressed;
 		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
-										is_ufomap))
+										compressed, is_ufomap))
 		{
 			return false;
 		}
 
-		return readData(s, res, depth_levels, binary, !is_ufomap);
+		return readData(s, res, depth_levels, occupancy_thres, free_thres, compressed, binary,
+										!is_ufomap);
 
 		// TODO: Check size?
 	}
 
 	bool readData(std::istream& s, float resolution, unsigned int depth_levels,
+								float occupancy_thres, float free_thres, bool compressed = false,
 								bool binary = false, bool from_octomap = false)
 	{
 		if (binary && !binarySupport())
@@ -1578,21 +1581,28 @@ public:
 			// Warning
 		}
 
+		if (compressed)
+		{
+			// TODO: Decompress
+		}
+
 		clear(resolution, depth_levels);
 
 		root_ = InnerNode<LEAF_NODE>();
 
 		if (binary)
 		{
-			return readBinaryNodesRecurs(s, root_, depth_levels_, from_octomap);
+			return readBinaryNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
+																	 logit(free_thres), from_octomap);
 		}
 		else
 		{
-			return readNodesRecurs(s, root_, depth_levels_, from_octomap);
+			return readNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
+														 logit(free_thres), from_octomap);
 		}
 	}
 
-	bool write(const std::string& filename, bool binary = false,
+	bool write(const std::string& filename, bool compress = false, bool binary = false,
 						 bool to_octomap = false) const
 	{
 		if (binary && !binarySupport())
@@ -1608,12 +1618,13 @@ public:
 			return false;
 		}
 		// TODO: check is_good of finished stream, return
-		write(file, binary, to_octomap);
+		write(file, compress, binary, to_octomap);
 		file.close();
 		return true;
 	}
 
-	bool write(std::ostream& s, bool binary = false, bool to_octomap = false) const
+	bool write(std::ostream& s, bool compress = false, bool binary = false,
+						 bool to_octomap = false) const
 	{
 		if (binary && !binarySupport())
 		{
@@ -1647,12 +1658,13 @@ public:
 		s << "size " << size() << std::endl;
 		s << "res " << getResolution() << std::endl;
 		s << "levels " << getTreeDepthLevels() << std::endl;
+		s << "occupancy_thres " << getOccupancyThres() << std::endl;
+		s << "free_thres " << getFreeThres() << std::endl;
+		s << "compressed " << compress << std::endl;
 		s << "data" << std::endl;
-		s << "occupancy_thres" << getOccupancyThres() << std::endl;
-		s << "free_thres" << getFreeThres() << std::endl;
 
 		// write the actual data:
-		writeData(s, binary, to_octomap);
+		writeData(s, compress, binary, to_octomap);
 
 		if (s.good())
 		{
@@ -1661,21 +1673,30 @@ public:
 		return false;
 	}
 
-	bool writeData(std::ostream& s, bool binary = false, bool to_octomap = false) const
+	bool writeData(std::ostream& s, bool compress = false, bool binary = false,
+								 bool to_octomap = false) const
 	{
 		if (binary && !binarySupport())
 		{
 			return false;
 		}
 
+		bool success;
 		if (binary)
 		{
-			return writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
+			success = writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
 		}
 		else
 		{
-			return writeNodesRecurs(s, root_, depth_levels_, to_octomap);
+			success = writeNodesRecurs(s, root_, depth_levels_, to_octomap);
 		}
+
+		if (compress)
+		{
+			// TODO: Compress
+			// LZ4_compress_default(s )
+		}
+		return success;
 	}
 
 protected:
@@ -2208,6 +2229,7 @@ protected:
 		}
 	}
 
+	// TODO: Changed bool super_speed = false to unsigned int n = 0
 	void computeUpdateDiscrete(const Point3& sensor_origin, const std::vector<Key>& current,
 														 const KeyMap<std::vector<Key>>& discrete_map,
 														 bool super_speed = false)
@@ -2430,14 +2452,15 @@ protected:
 
 	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
-									bool is_ufomap = true)
+									bool& compressed, bool is_ufomap = true)
 	{
 		id = "";
 		size = 0;
 		res = 0.0;
 		depth_levels = 0;
-		occupancy_thres = -1.0;
-		free_thres = -1.0;
+		occupancy_thres = 0.5;
+		free_thres = 0.5;
+		compressed = false;
 
 		std::string token;
 		bool header_read = false;
@@ -2487,6 +2510,10 @@ protected:
 			{
 				s >> free_thres;
 			}
+			else if ("compressed" == token)
+			{
+				s >> compressed;
+			}
 			else
 			{
 				// Other token
@@ -2500,27 +2527,26 @@ protected:
 
 		if (!header_read)
 		{
-			// OCTOMAP_ERROR_STR("Error reading OcTree header");
 			return false;
 		}
 
 		if ("" == id)
 		{
-			// OCTOMAP_ERROR_STR("Error reading OcTree header, ID not set");
 			return false;
 		}
 
 		if (0.0 >= res)
 		{
-			// OCTOMAP_ERROR_STR("Error reading OcTree header, res <= 0.0");
 			return false;
 		}
 
+		// TODO: What to do?
 		if (0.0 > occupancy_thres)
 		{
 			return false;
 		}
 
+		// TODO: What to do?
 		if (0.0 > free_thres)
 		{
 			return false;
@@ -2549,9 +2575,11 @@ protected:
 	}
 
 	bool readNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
-											 unsigned int current_depth, bool from_octomap = false)
+											 unsigned int current_depth, float occupancy_thres_log,
+											 float free_thres_log, bool from_octomap = false)
 	{
-		static_cast<LEAF_NODE&>(node).readData(s, from_octomap);
+		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log,
+																					 from_octomap);
 		node.all_children_same = true;
 
 		char children_char;
@@ -2568,7 +2596,7 @@ protected:
 			{
 				for (LEAF_NODE& child : *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
 				{
-					child.readData(s, from_octomap);
+					child.readData(s, occupancy_thres_log, free_thres_log, from_octomap);
 				}
 			}
 			else
@@ -2576,7 +2604,8 @@ protected:
 				for (InnerNode<LEAF_NODE>& child :
 						 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
 				{
-					readNodesRecurs(s, child, current_depth - 1, from_octomap);
+					readNodesRecurs(s, child, current_depth - 1, occupancy_thres_log,
+													free_thres_log, from_octomap);
 				}
 			}
 		}
@@ -2588,6 +2617,7 @@ protected:
 
 	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
 																		 unsigned int current_depth,
+																		 float occupancy_thres_log, float free_thres_log,
 																		 bool from_octomap = false)
 	{
 		return false;
@@ -2596,7 +2626,8 @@ protected:
 	bool writeNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
 												unsigned int current_depth, bool to_octomap = false) const
 	{
-		static_cast<const LEAF_NODE&>(node).writeData(s, to_octomap);
+		static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
+																									free_thres_log_, to_octomap);
 
 		// 1 bit for each children; 0: empty, 1: allocated
 		std::bitset<8> children;
@@ -2616,7 +2647,7 @@ protected:
 				for (const LEAF_NODE& child :
 						 *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
 				{
-					child.writeData(s, to_octomap);
+					child.writeData(s, occupancy_thres_log_, free_thres_log_, to_octomap);
 				}
 			}
 			else

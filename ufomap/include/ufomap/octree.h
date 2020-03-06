@@ -95,6 +95,7 @@ protected:
 
 	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
 																		 unsigned int current_depth,
+																		 float occupancy_thres_log, float free_thres_log,
 																		 bool from_octomap = false) override;
 
 	virtual bool writeBinaryNodesRecurs(std::ostream& s,
