@@ -163,12 +163,13 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 			ufomap::Point3 min_coord = ufomap_.getMax();
 			ufomap::Point3 max_coord = ufomap_.getMin();
 
-			for (auto it = ufomap_.begin_leafs_bbx(min_value, max_value,
-																						 render_type_[UFOMAP_OCCUPIED]->getBool(),
-																						 render_type_[UFOMAP_FREE]->getBool(),
-																						 render_type_[UFOMAP_UNKNOWN]->getBool(),
-																						 false, depth_property_->getInt()),
-								end = ufomap_.end_leafs_bbx();
+			for (auto it = ufomap_.begin_leafs_bounding(
+										ufomap_geometry::AABB(min_value, max_value),
+										render_type_[UFOMAP_OCCUPIED]->getBool(),
+										render_type_[UFOMAP_FREE]->getBool(),
+										render_type_[UFOMAP_UNKNOWN]->getBool(), false,
+										depth_property_->getInt()),
+								end = ufomap_.end_leafs();
 					 it != end; ++it)
 			{
 				// TODO: Check visibility - no, bad idea!
