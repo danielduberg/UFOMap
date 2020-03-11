@@ -1275,32 +1275,32 @@ public:
 
 	void resetChangeDetection()
 	{
-		changed_keys_.clear();
+		changed_codes_.clear();
 	}
 
 	size_t numChangesDeteced() const
 	{
-		return changed_keys_.size();
+		return changed_codes_.size();
 	}
 
-	const KeySet& getChangedKeys() const
+	const CodeSet& getChangedCodes() const
 	{
-		return changed_keys_;
+		return changed_codes_;
 	}
 
-	KeySet getChangedKeys()
+	CodeSet getChangedCodes()
 	{
-		return changed_keys_;
+		return changed_codes_;
 	}
 
-	KeySet::const_iterator changedKeysBegin() const
+	CodeSet::const_iterator changedCodesBegin() const
 	{
-		return changed_keys_.cbegin();
+		return changed_codes_.cbegin();
 	}
 
-	KeySet::const_iterator changedKeysEnd() const
+	CodeSet::const_iterator changedCodesEnd() const
 	{
-		return changed_keys_.cend();
+		return changed_codes_.cend();
 	}
 
 	//
@@ -1775,6 +1775,10 @@ protected:
 			{
 				// Update this node
 				changed = updateNode(inner_node, current_depth);
+				if (changed && change_detection_enabled_)
+				{
+					changed_codes_.insert(code.toDepth(current_depth));
+				}
 			}
 			return std::make_pair(child, changed);
 		}
@@ -1827,6 +1831,11 @@ protected:
 						updateNode(inner_node, current_depth);
 					}
 				}
+			}
+
+			if (change_detection_enabled_)
+			{
+				changed_codes_.insert(code);
 			}
 
 			return std::make_pair(Node<LEAF_NODE>(&node, code), true);
@@ -2693,7 +2702,8 @@ protected:
 
 	// Change detection
 	bool change_detection_enabled_ = false;
-	KeySet changed_keys_;  // Set of keys that have changed since last resetChangeDetection
+	CodeSet changed_codes_;  // Set of codes that have changed since last
+													 // resetChangeDetection
 
 	// The root of the octree
 	InnerNode<LEAF_NODE> root_;
