@@ -218,6 +218,10 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 		{
 			// Update this node
 			changed = OctreeBase<OccupancyNodeRGB>::updateNode(inner_node, current_depth);
+			if (changed && change_detection_enabled_)
+			{
+				changed_codes_.insert(code.toDepth(current_depth));
+			}
 		}
 		return std::make_pair(child, changed);
 	}
@@ -250,6 +254,12 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 				OctreeBase<OccupancyNodeRGB>::updateNode(inner_node, current_depth);
 			}
 		}
+
+		if (change_detection_enabled_)
+		{
+			changed_codes_.insert(code.toDepth(current_depth));
+		}
+		
 		return std::make_pair(Node<OccupancyNodeRGB>(&node, code), true);
 	}
 }
