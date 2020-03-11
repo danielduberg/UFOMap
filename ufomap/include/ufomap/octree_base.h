@@ -87,14 +87,12 @@ public:
 		indices_.clear();
 	}
 
-	std::tuple<double, double, size_t> insertPointCloudDiscrete(const Point3& sensor_origin,
+	void insertPointCloudDiscrete(const Point3& sensor_origin,
 																															const PointCloud& cloud,
 																															float max_range = -1,
 																															bool super_speed = false,
 																															unsigned int depth = 0)
 	{
-		auto start = std::chrono::high_resolution_clock::now();
-
 		KeyMap<std::vector<Key>> discrete_map;
 
 		std::vector<Key> discrete;
@@ -173,24 +171,12 @@ public:
 
 		computeUpdateDiscrete(sensor_origin, discrete, discrete_map, super_speed);
 
-		std::chrono::duration<double> ray_casting_elapsed =
-				std::chrono::high_resolution_clock::now() - start;
-
-		start = std::chrono::high_resolution_clock::now();
-
 		// Insert
 		for (const auto& [code, value] : indices_)
 		{
 			updateNodeValue(code, value);
 		}
-		size_t num_nodes = indices_.size();
 		indices_.clear();
-
-		std::chrono::duration<double> insert_elapsed =
-				std::chrono::high_resolution_clock::now() - start;
-
-		return std::make_tuple(ray_casting_elapsed.count(), insert_elapsed.count(),
-													 num_nodes);
 	}
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloud& cloud,

@@ -69,22 +69,16 @@ void OctreeRGB::insertPointCloud(const Point3& sensor_origin, const PointCloudRG
 	}
 }
 
-std::tuple<double, double, size_t> OctreeRGB::insertPointCloudDiscrete(
-		const Point3& sensor_origin, const PointCloudRGB& cloud, float max_range,
-		bool super_speed, unsigned int depth)
+void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
+																				 const PointCloudRGB& cloud, float max_range,
+																				 bool super_speed, unsigned int depth)
 {
-	auto start = std::chrono::high_resolution_clock::now();
-
 	PointCloud no_color_cloud;
 
 	CodeMap<std::vector<Color>> colors;
 
 	for (const Point3RGB& point : cloud)
 	{
-		// if (8 > dist_(rng_))
-		// {
-		// 	continue;
-		// }
 		if (0 > max_range || (point - sensor_origin).norm() < max_range)
 		{
 			std::vector<Color>& color = colors[Code(coordToKey(point))];
@@ -96,14 +90,8 @@ std::tuple<double, double, size_t> OctreeRGB::insertPointCloudDiscrete(
 		}
 	}
 
-	std::chrono::duration<double> color_ray_casting_elapsed =
-			std::chrono::high_resolution_clock::now() - start;
-
-	auto [ray_casting_elapsed, insert_elapsed, num_nodes] =
-			OctreeBase<OccupancyNodeRGB>::insertPointCloudDiscrete(
-					sensor_origin, no_color_cloud, max_range, super_speed, depth);
-
-	start = std::chrono::high_resolution_clock::now();
+	OctreeBase<OccupancyNodeRGB>::insertPointCloudDiscrete(sensor_origin, no_color_cloud,
+																												 max_range, super_speed, depth);
 
 	for (const auto& [code, color] : colors)
 	{
@@ -113,12 +101,6 @@ std::tuple<double, double, size_t> OctreeRGB::insertPointCloudDiscrete(
 			integrateColor(code, getAverageColor(color));
 		}
 	}
-
-	std::chrono::duration<double> color_insert_elapsed =
-			std::chrono::high_resolution_clock::now() - start;
-
-	return std::make_tuple(color_ray_casting_elapsed.count() + ray_casting_elapsed,
-												 color_insert_elapsed.count() + insert_elapsed, num_nodes);
 }
 
 //

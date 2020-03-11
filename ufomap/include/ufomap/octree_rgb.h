@@ -73,11 +73,9 @@ public:
 	void insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
 												float max_range = -1);
 
-	std::tuple<double, double, size_t> insertPointCloudDiscrete(const Point3& sensor_origin,
-																															const PointCloudRGB& cloud,
-																															float max_range = -1,
-																															bool super_speed = false,
-																															unsigned int depth = 0);
+	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloudRGB& cloud,
+																float max_range = -1, bool super_speed = false,
+																unsigned int depth = 0);
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
 												const Pose6& frame_origin, float max_range = -1)
