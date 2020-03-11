@@ -160,8 +160,8 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 				}
 			}
 
-			ufomap::Point3 min_coord = ufomap_.getMax();
-			ufomap::Point3 max_coord = ufomap_.getMin();
+			QHash<OctreeVoxelType, ufomap::Point3> min_coord;
+			QHash<OctreeVoxelType, ufomap::Point3> max_coord;
 
 			for (auto it = ufomap_.begin_leafs_bounding(
 										ufomap_geometry::AABB(min_value, max_value),
@@ -175,11 +175,6 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 				// TODO: Check visibility - no, bad idea!
 
 				ufomap::Point3 coord = it.getCenter();
-				for (int i = 0; i < 3; ++i)
-				{
-					min_coord[i] = std::min(min_coord[i], coord[i]);
-					max_coord[i] = std::max(max_coord[i], coord[i]);
-				}
 				rviz::PointCloud::Point point;
 				point.position.x = coord.x();
 				point.position.y = coord.y();
@@ -199,6 +194,20 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 					type = UFOMAP_UNKNOWN;
 				}
 
+				if (min_coord.contains(type))
+				{
+					for (int i = 0; i < 3; ++i)
+					{
+						min_coord[type][i] = std::min(min_coord[type][i], coord[i]);
+						max_coord[type][i] = std::max(max_coord[type][i], coord[i]);
+					}
+				}
+				else
+				{
+					min_coord[type] = coord;
+					max_coord[type] = coord;
+				}
+
 				probabilities[type][it.getDepth()].push_back(it.getProbability());
 				points[type][it.getDepth()].push_back(point);
 			}
@@ -210,7 +219,7 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 				{
 					for (size_t j = 0; j < points[type][i].size(); ++j)
 					{
-						colorPoint(points[type][i][j], min_coord, max_coord,
+						colorPoint(points[type][i][j], min_coord[type], max_coord[type],
 											 probabilities[type][i][j], type);
 					}
 				}
