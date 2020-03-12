@@ -87,11 +87,9 @@ public:
 		indices_.clear();
 	}
 
-	void insertPointCloudDiscrete(const Point3& sensor_origin,
-																															const PointCloud& cloud,
-																															float max_range = -1,
-																															bool super_speed = false,
-																															unsigned int depth = 0)
+	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloud& cloud,
+																float max_range = -1, bool super_speed = false,
+																unsigned int depth = 0)
 	{
 		KeyMap<std::vector<Key>> discrete_map;
 
@@ -2666,10 +2664,10 @@ protected:
 	}
 
 protected:
-	float resolution_;
-	float resolution_factor_;
-	unsigned int depth_levels_;
-	unsigned int max_value_;
+	float resolution_;           // The voxel size of the leaf nodes
+	float resolution_factor_;    // Reciprocal of the resolution
+	unsigned int depth_levels_;  // The maximum depth of the octree
+	unsigned int max_value_;     // The maximum coordinate value the octree can store
 
 	// Sensor model
 	float occupancy_thres_log_;     // Threshold for occupancy
@@ -2681,15 +2679,15 @@ protected:
 
 	// Bounding box
 	bool bbx_limit_enabled_ = false;  // Use bounding box for queries?
-	Point3 bbx_min_;
-	Point3 bbx_max_;
-	Key bbx_min_key_;
-	Key bbx_max_key_;
+	Point3 bbx_min_;                  // Minimum coordinate for bounding box
+	Point3 bbx_max_;                  // Maximum coordinate for bounding box
+	Key bbx_min_key_;                 // Minimum key for bounding box
+	Key bbx_max_key_;                 // Maximum key for bounding box
 
 	// Change detection
-	bool change_detection_enabled_ = false;
-	CodeSet changed_codes_;  // Set of codes that have changed since last
-													 // resetChangeDetection
+	bool change_detection_enabled_ = false;  // Flag if change detection is enabled or not
+	CodeSet changed_codes_;                  // Set of codes that have changed since last
+																					 // resetChangeDetection
 
 	// The root of the octree
 	InnerNode<LEAF_NODE> root_;
