@@ -92,6 +92,12 @@ bool Octree::readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& no
 					(*static_cast<std::array<OccupancyNode, 8>*>(node.children))[i].logit =
 							clamping_thres_max_log_;
 				}
+				else
+				{
+					// Unknown leaf
+					(*static_cast<std::array<OccupancyNode, 8>*>(node.children))[i].logit =
+							(occupancy_thres_log_ + free_thres_log_) / 2.0;
+				}
 			}
 		}
 		else
@@ -121,6 +127,14 @@ bool Octree::readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& no
 					// Has children
 					readBinaryNodesRecurs(s, child, current_depth - 1, occupancy_thres_log,
 																free_thres_log, from_octomap);
+				}
+				else
+				{
+					// Unknown inner leaf
+					child.logit = (occupancy_thres_log_ + free_thres_log_) / 2.0;
+					child.contains_free = false;
+					child.contains_unknown = true;
+					child.all_children_same = true;
 				}
 			}
 		}
@@ -160,7 +174,7 @@ bool Octree::writeBinaryNodesRecurs(std::ostream& s, const InnerNode<OccupancyNo
 			{
 				const InnerNode<OccupancyNode>& child =
 						(*static_cast<std::array<InnerNode<OccupancyNode>, 8>*>(node.children))[i];
-				if (hasChildren(child))
+				if (hasChildren(child) && !containsOnlySameType(child))
 				{
 					children_data_1[i] = 1;
 					children_data_2[i] = 1;
@@ -203,7 +217,7 @@ bool Octree::writeBinaryNodesRecurs(std::ostream& s, const InnerNode<OccupancyNo
 		for (const auto& child :
 				 *static_cast<std::array<InnerNode<OccupancyNode>, 8>*>(node.children))
 		{
-			if (hasChildren(child))
+			if (hasChildren(child) && !containsOnlySameType(child))
 			{
 				writeBinaryNodesRecurs(s, child, current_depth - 1, to_octomap);
 			}
