@@ -71,7 +71,7 @@ void OctreeRGB::insertPointCloud(const Point3& sensor_origin, const PointCloudRG
 
 void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
 																				 const PointCloudRGB& cloud, float max_range,
-																				 bool super_speed, unsigned int depth)
+																				 unsigned int n, unsigned int depth)
 {
 	PointCloud no_color_cloud;
 
@@ -91,7 +91,7 @@ void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
 	}
 
 	OctreeBase<OccupancyNodeRGB>::insertPointCloudDiscrete(sensor_origin, no_color_cloud,
-																												 max_range, super_speed, depth);
+																												 max_range, n, depth);
 
 	for (const auto& [code, color] : colors)
 	{
