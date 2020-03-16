@@ -19,10 +19,10 @@ bool msgToMap(const Ufomap& msg, TreeType& tree)
 
 template <typename TreeType>
 bool mapToMsgData(const TreeType& tree, std::vector<int8_t>& map_data,
-									bool binary = false)
+									bool compress = false, bool binary = false)
 {
 	std::stringstream data_stream;
-	if (!tree.writeData(data_stream, binary))
+	if (!tree.writeData(data_stream, compress, binary))
 	{
 		return false;
 	}
@@ -33,14 +33,16 @@ bool mapToMsgData(const TreeType& tree, std::vector<int8_t>& map_data,
 }
 
 template <typename TreeType>
-bool mapToMsg(const TreeType& tree, Ufomap& msg, bool binary = false)
+bool mapToMsg(const TreeType& tree, Ufomap& msg, bool compress = false,
+							bool binary = false)
 {
 	msg.resolution = tree.getResolution();
 	msg.id = tree.getTreeType();
 	msg.depth_levels = tree.getTreeDepthLevels();
+	msg.compressed = compress;
 	msg.binary = binary;
 
-	return mapToMsgData(tree, msg.data);
+	return mapToMsgData(tree, msg.data, compress, binary);
 }
 }  // namespace ufomap_msgs
 
