@@ -15,6 +15,7 @@ public:
 	Pose6(const Pose6& other);
 	Pose6(const Vector3& translation, const Quaternion& rotation);
 	Pose6(float x, float y, float z, float roll, float pitch, float yaw);
+	Pose6(float t_x, float t_y, float t_z, float r_w, float r_x, float r_y, float r_z);
 
 	Pose6& operator=(const Pose6& other);
 
