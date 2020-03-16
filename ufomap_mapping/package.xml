@@ -22,12 +22,13 @@
   <depend>std_srvs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
+  <depend>tf2_sensor_msgs</depend>
   <depend>ufomap</depend>
   <depend>ufomap_msgs</depend>
   <depend>ufomap_ros</depend>
 
 
   <export>
-
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
   </export>
 </package>

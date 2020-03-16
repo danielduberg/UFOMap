@@ -1,0 +1,7 @@
+<library path="lib/libufomap_mapping_server_nodelet">
+  <class name="ufomap_mapping/UFOMapServerNodelet" type="ufomap_mapping::UFOMapServerNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      This is the UFOMap mapping server Nodelet.
+    </description>
+  </class>
+</library>
