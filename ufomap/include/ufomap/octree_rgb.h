@@ -74,7 +74,7 @@ public:
 												float max_range = -1);
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloudRGB& cloud,
-																float max_range = -1, bool super_speed = false,
+																float max_range = -1, unsigned int n = 0,
 																unsigned int depth = 0);
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
@@ -87,11 +87,11 @@ public:
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloudRGB& cloud,
 																const Pose6& frame_origin, float max_range = -1,
-																bool super_speed = false, unsigned int depth = 0)
+																unsigned int n = 0, unsigned int depth = 0)
 	{
 		PointCloudRGB cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
-		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, super_speed,
+		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n,
 														 depth);
 	}
 

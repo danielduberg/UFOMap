@@ -12,7 +12,9 @@
 #include <algorithm>
 #include <bitset>
 #include <chrono>
+#include <cstring>
 #include <fstream>
+#include <sstream>
 #include <type_traits>
 
 // Compression
@@ -88,7 +90,7 @@ public:
 	}
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloud& cloud,
-																float max_range = -1, bool super_speed = false,
+																float max_range = -1, unsigned int n = 0,
 																unsigned int depth = 0)
 	{
 		KeyMap<std::vector<Key>> discrete_map;
@@ -133,8 +135,8 @@ public:
 				changed_end = coordToKey(end, 0);
 				if (changed_point == end)
 				{
-					if (super_speed && 0 != depth)  // TODO: Why 0 == depth? Should it not be 0 !=
-																					// depth
+					if (0 == n && 0 != depth)  // TODO: Why 0 == depth? Should it not be 0 !=
+																		 // depth
 					{
 						integrateHit(Code(changed_end));
 					}
@@ -150,7 +152,7 @@ public:
 		if (0 != depth)
 		{
 			std::vector<Key> previous;
-			for (unsigned int d = (super_speed ? depth : 1); d <= depth; ++d)
+			for (unsigned int d = (0 == n ? depth : 1); d <= depth; ++d)
 			{
 				previous.swap(discrete);
 				discrete.clear();
@@ -167,7 +169,7 @@ public:
 			}
 		}
 
-		computeUpdateDiscrete(sensor_origin, discrete, discrete_map, super_speed);
+		computeUpdateDiscrete(sensor_origin, discrete, discrete_map, n);
 
 		// Insert
 		for (const auto& [code, value] : indices_)
@@ -187,12 +189,11 @@ public:
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloud& cloud,
 																const Pose6& frame_origin, float max_range = -1,
-																bool super_speed = false, unsigned int depth = 0)
+																unsigned int n = 0, unsigned int depth = 0)
 	{
 		PointCloud cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
-		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, super_speed,
-														 depth);
+		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n, depth);
 	}
 
 	//
@@ -1565,10 +1566,16 @@ public:
 			// Warning
 		}
 
-		if (compressed)
-		{
-			// TODO: Decompress
-		}
+		// if (compressed)
+		// {
+		// 	// std::string str(std::istreambuf_iterator<char>(s), {});
+		// 	// const int compressed_data_size = (int)(strlen(src));
+		// 	// const char* compressed_data = str.c_str();
+		// 	// const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
+		// 	// compressed_data_size, src_size); const int max_dst_size =
+		// 	// LZ4_compressBound(src_size); char compressed_data[max_dst_size];
+		// 	// LZ4_compress_default(src, compressed_data, src_size, max_dst_size);
+		// }
 
 		clear(resolution, depth_levels);
 
@@ -1666,19 +1673,39 @@ public:
 		}
 
 		bool success;
-		if (binary)
-		{
-			success = writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
-		}
-		else
-		{
-			success = writeNodesRecurs(s, root_, depth_levels_, to_octomap);
-		}
+		// if (compress)
+		// {
+		// 	std::stringstream str_stream;
+		// 	if (binary)
+		// 	{
+		// 		success = writeBinaryNodesRecurs(str_stream, root_, depth_levels_, to_octomap);
+		// 	}
+		// 	else
+		// 	{
+		// 		success = writeNodesRecurs(str_stream, root_, depth_levels_, to_octomap);
+		// 	}
 
-		if (compress)
+		// 	// Compress
+		// 	const std::string& str = str_stream.str();
+		// 	const char* src = str.c_str();
+		// 	const int src_size = (int)(strlen(src));
+		// 	const int max_dst_size = LZ4_compressBound(src_size);
+		// 	char compressed_data[max_dst_size];
+		// 	const int dst_size =
+		// 			LZ4_compress_default(src, compressed_data, src_size, max_dst_size);
+		// 	fprintf(stderr, "%d vs %d\n", src_size, dst_size);
+		// 	s << compressed_data;
+		// }
+		// else
 		{
-			// TODO: Compress
-			// LZ4_compress_default(s )
+			if (binary)
+			{
+				success = writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
+			}
+			else
+			{
+				success = writeNodesRecurs(s, root_, depth_levels_, to_octomap);
+			}
 		}
 		return success;
 	}
@@ -2172,6 +2199,24 @@ protected:
 	// Random functions
 	//
 
+	bool containsOnlySameType(const LEAF_NODE& node) const
+	{
+		return true;
+	}
+
+	bool containsOnlySameType(const InnerNode<LEAF_NODE>& node) const
+	{
+		if (isOccupied(node))
+		{
+			return !containsFree(node) && !containsUnknown(node);
+		}
+		else if (isUnknown(node))
+		{
+			return !containsFree(node);
+		}
+		return true;  // Is free and does only contain free children
+	}
+
 	void computeUpdate(const Point3& sensor_origin, const PointCloud& cloud,
 										 float max_range)
 	{
@@ -2222,10 +2267,9 @@ protected:
 		}
 	}
 
-	// TODO: Changed bool super_speed = false to unsigned int n = 0
 	void computeUpdateDiscrete(const Point3& sensor_origin, const std::vector<Key>& current,
 														 const KeyMap<std::vector<Key>>& discrete_map,
-														 bool super_speed = false)
+														 unsigned int n = 0)
 	{
 		// Source: A Faster Voxel Traversal Algorithm for Ray Tracing
 
@@ -2259,14 +2303,14 @@ protected:
 			else
 			{
 				float node_size = getNodeSize(key.getDepth());
-				int num_steps = distance / node_size;
+				int num_steps = (distance / node_size) - n;
 
 				Point3 current = origin;
 				Point3 last = current;
 				Key current_key = coordToKey(current, key.getDepth());
-				int step = (super_speed ? 0 : 1);  // TODO: Why 1?
+				int step = 0;
 				float value = prob_miss_log_ / float((2.0 * key.getDepth()) + 1);
-				while (current_key != key && step < num_steps)
+				while (current_key != key && step <= num_steps)
 				{
 					last = current;
 					indices_.try_emplace(current_key, value);
@@ -2275,13 +2319,13 @@ protected:
 					++step;
 				}
 
-				if (super_speed)
+				if (0 == n)
 				{
 					indices_.try_emplace(current_key, value);
 				}
 				else
 				{
-					computeUpdateDiscrete(last, discrete_map.at(key), discrete_map, super_speed);
+					computeUpdateDiscrete(last, discrete_map.at(key), discrete_map, n);
 				}
 			}
 		}
