@@ -68,8 +68,12 @@ find_package(catkin REQUIRED)
 catkin_package(
   INCLUDE_DIRS include ${catkin_INCLUDE_DIRS} ${UFOMAP_INCLUDE_DIRS}
   LIBRARIES ${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenMP_LIBRARIES}
-  DEPENDS OpenMP
+  DEPENDS OpenMP LZ4
 )
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LZ4 REQUIRED liblz4)
+# find_library(LZ4 lz4)
 
 include_directories(
   include
@@ -88,6 +92,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${OpenMP_LIBRARIES}
+  ${LZ4_LIBRARIES}
 )
 
 install(TARGETS ${PROJECT_NAME}
