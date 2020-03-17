@@ -4,7 +4,7 @@
 
 	<arg name="resolution" default="0.1" />
 	<arg name="depth_levels" default="16" />
-	<arg name="multithreaded" default="false" />
+	<arg name="multithreaded" default="true" />
 
 	<node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager)" args="manager" output="screen">
 		<param name="num_worker_threads" value="12" />

@@ -1461,50 +1461,6 @@ public:
 	// Read/write
 	//
 
-	// TODO: Update to is_occupied in nodes
-
-	// static std::pair<std::string, std::string> getType(const std::string& filename)
-	// {
-	// 	std::ifstream file(filename.c_str(), std::ios_base::in | std::ios_base::binary);
-	// 	if (!file.is_open())
-	// 	{
-	// 		// Error
-	// 		return std::make_pair("", "");
-	// 	}
-	// 	// TODO: check is_good of finished stream, warn?
-	// 	return getType(file);
-	// }
-
-	// static std::pair<std::string, std::string> getType(std::istream& s)
-	// {
-	// 	std::istream::pos_type s_pos = s.tellg();
-
-	// 	std::string type = readFirstLineHeader(s);
-	// 	if ("" == type)
-	// 	{
-	// 		s.clear();
-	// 		s.seekg(s_pos);
-	// 		return std::make_pair("", "");
-	// 	}
-
-	// 	bool is_ufomap = "ufomap" == type;
-
-	// 	std::string id;
-	// 	size_t size;
-	// 	float res;
-	// 	unsigned int depth_levels;
-	// 	if (!readHeader(s, id, size, res, depth_levels, is_ufomap))
-	// 	{
-	// 		s.clear();
-	// 		s.seekg(s_pos);
-	// 		return std::make_pair("", "");
-	// 	}
-
-	// 	s.clear();
-	// 	s.seekg(s_pos);
-	// 	return std::make_pair(type, id);
-	// }
-
 	bool read(const std::string& filename)
 	{
 		std::ifstream file(filename.c_str(), std::ios_base::in | std::ios_base::binary);
@@ -1540,21 +1496,36 @@ public:
 		float occupancy_thres;
 		float free_thres;
 		bool compressed;
+		uint64_t data_size;
+		uint64_t compressed_data_size;
 		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
-										compressed, is_ufomap))
+										compressed, data_size, compressed_data_size, is_ufomap))
 		{
 			return false;
 		}
 
-		return readData(s, res, depth_levels, occupancy_thres, free_thres, compressed, binary,
-										!is_ufomap);
-
+		if (compressed)
+		{
+			std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
+																			 std::ios_base::binary);
+			if (decompressData(s, uncompressed_s, data_size, compressed_data_size))
+			{
+				return readData(uncompressed_s, res, depth_levels, occupancy_thres, free_thres,
+												binary, !is_ufomap);
+			}
+			return false;
+		}
+		else
+		{
+			return readData(s, res, depth_levels, occupancy_thres, free_thres, binary,
+											!is_ufomap);
+		}
 		// TODO: Check size?
 	}
 
 	bool readData(std::istream& s, float resolution, unsigned int depth_levels,
-								float occupancy_thres, float free_thres, bool compressed = false,
-								bool binary = false, bool from_octomap = false)
+								float occupancy_thres, float free_thres, bool binary = false,
+								bool from_octomap = false)
 	{
 		if (binary && !binarySupport())
 		{
@@ -1565,17 +1536,6 @@ public:
 		{
 			// Warning
 		}
-
-		// if (compressed)
-		// {
-		// 	// std::string str(std::istreambuf_iterator<char>(s), {});
-		// 	// const int compressed_data_size = (int)(strlen(src));
-		// 	// const char* compressed_data = str.c_str();
-		// 	// const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
-		// 	// compressed_data_size, src_size); const int max_dst_size =
-		// 	// LZ4_compressBound(src_size); char compressed_data[max_dst_size];
-		// 	// LZ4_compress_default(src, compressed_data, src_size, max_dst_size);
-		// }
 
 		clear(resolution, depth_levels);
 
@@ -1591,6 +1551,37 @@ public:
 			return readNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
 														 logit(free_thres), from_octomap);
 		}
+	}
+
+	bool decompressData(std::istream& s_in, std::iostream& s_out, uint64_t data_size,
+											uint64_t compressed_data_size) const
+	{
+		char compressed_data[compressed_data_size];
+		s_in.read(compressed_data, compressed_data_size);
+		char regen_buffer[data_size];
+		const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
+																											compressed_data_size, data_size);
+		if (0 > decompressed_size)
+		{
+			return false;
+		}
+		s_out.write(regen_buffer, decompressed_size * sizeof(char));
+		return true;
+	}
+
+	bool readDataCompressed(std::istream& s, float resolution, unsigned int depth_levels,
+													float occupancy_thres, float free_thres, uint64_t data_size,
+													uint64_t compressed_data_size, bool binary = false,
+													bool from_octomap = false)
+	{
+		std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
+																		 std::ios_base::binary);
+		if (decompressData(s, uncompressed_s, data_size, compressed_data_size))
+		{
+			return readData(uncompressed_s, resolution, depth_levels, occupancy_thres,
+											free_thres, binary, from_octomap);
+		}
+		return false;
 	}
 
 	bool write(const std::string& filename, bool compress = false, bool binary = false,
@@ -1648,14 +1639,29 @@ public:
 		}
 		s << "size " << size() << std::endl;
 		s << "res " << getResolution() << std::endl;
-		s << "levels " << getTreeDepthLevels() << std::endl;
+		s << "depth_levels " << getTreeDepthLevels() << std::endl;
 		s << "occupancy_thres " << getOccupancyThres() << std::endl;
 		s << "free_thres " << getFreeThres() << std::endl;
 		s << "compressed " << compress << std::endl;
-		s << "data" << std::endl;
 
-		// write the actual data:
-		writeData(s, compress, binary, to_octomap);
+		std::stringstream data(std::ios_base::in | std::ios_base::out |
+													 std::ios_base::binary);
+		std::stringstream compressed_data(std::ios_base::in | std::ios_base::out |
+																			std::ios_base::binary);
+		writeData(data, binary, to_octomap);
+		if (compress)
+		{
+			auto [data_size, compressed_data_size] = compressData(data, compressed_data);
+			s << "data_size " << data_size << std::endl;
+			s << "compressed_data_size " << compressed_data_size << std::endl;
+			s << "data" << std::endl;
+			s << compressed_data.rdbuf();
+		}
+		else
+		{
+			s << "data" << std::endl;
+			s << data.rdbuf();
+		}
 
 		if (s.good())
 		{
@@ -1664,50 +1670,51 @@ public:
 		return false;
 	}
 
-	bool writeData(std::ostream& s, bool compress = false, bool binary = false,
-								 bool to_octomap = false) const
+	bool writeData(std::ostream& s, bool binary = false, bool to_octomap = false) const
 	{
 		if (binary && !binarySupport())
 		{
 			return false;
 		}
 
-		bool success;
-		// if (compress)
-		// {
-		// 	std::stringstream str_stream;
-		// 	if (binary)
-		// 	{
-		// 		success = writeBinaryNodesRecurs(str_stream, root_, depth_levels_, to_octomap);
-		// 	}
-		// 	else
-		// 	{
-		// 		success = writeNodesRecurs(str_stream, root_, depth_levels_, to_octomap);
-		// 	}
-
-		// 	// Compress
-		// 	const std::string& str = str_stream.str();
-		// 	const char* src = str.c_str();
-		// 	const int src_size = (int)(strlen(src));
-		// 	const int max_dst_size = LZ4_compressBound(src_size);
-		// 	char compressed_data[max_dst_size];
-		// 	const int dst_size =
-		// 			LZ4_compress_default(src, compressed_data, src_size, max_dst_size);
-		// 	fprintf(stderr, "%d vs %d\n", src_size, dst_size);
-		// 	s << compressed_data;
-		// }
-		// else
+		if (binary)
 		{
-			if (binary)
-			{
-				success = writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
-			}
-			else
-			{
-				success = writeNodesRecurs(s, root_, depth_levels_, to_octomap);
-			}
+			return writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
 		}
-		return success;
+		else
+		{
+			return writeNodesRecurs(s, root_, depth_levels_, to_octomap);
+		}
+	}
+
+	std::pair<uint64_t, uint64_t> compressData(std::istream& s_in,
+																						 std::ostream& s_out) const
+	{
+		s_in.seekg(0, s_in.end);
+		const uint64_t data_size = s_in.tellg();
+		s_in.seekg(0, s_in.beg);
+		char data[data_size];
+		s_in.read(data, data_size);
+		const int max_dst_size = LZ4_compressBound(data_size);
+		char compressed_data[max_dst_size];
+		const uint64_t compressed_data_size =
+				LZ4_compress_default(data, compressed_data, data_size, max_dst_size);
+		s_out.write(compressed_data, compressed_data_size * sizeof(char));
+		return std::make_pair(data_size, compressed_data_size);
+	}
+
+	bool writeDataCompress(std::ostream& s, uint64_t& data_size,
+												 uint64_t& compressed_data_size, bool binary = false,
+												 bool to_octomap = false) const
+	{
+		std::stringstream data(std::ios_base::in | std::ios_base::out |
+													 std::ios_base::binary);
+		if (!writeData(data, binary, to_octomap))
+		{
+			return false;
+		}
+		std::tie(data_size, compressed_data_size) = compressData(data, s);
+		return true;
 	}
 
 protected:
@@ -2072,12 +2079,11 @@ protected:
 				child.contains_free = inner_node.contains_free;
 				child.contains_unknown = inner_node.contains_unknown;
 				child.all_children_same = true;
-				child.children = nullptr;
+				// child.children = nullptr;
 			}
 			num_inner_leaf_nodes_ += 7;  // Get 8 new and 1 is made into a inner node
 			num_inner_nodes_ += 1;
 		}
-
 		inner_node.all_children_same = false;
 	}
 
@@ -2489,7 +2495,8 @@ protected:
 
 	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
-									bool& compressed, bool is_ufomap = true)
+									bool& compressed, uint64_t& data_size, uint64_t& compressed_data_size,
+									bool is_ufomap = true)
 	{
 		id = "";
 		size = 0;
@@ -2498,6 +2505,8 @@ protected:
 		occupancy_thres = 0.5;
 		free_thres = 0.5;
 		compressed = false;
+		data_size = 0;
+		compressed_data_size = 0;
 
 		std::string token;
 		bool header_read = false;
@@ -2535,7 +2544,7 @@ protected:
 			{
 				s >> size;
 			}
-			else if ("levels" == token)
+			else if ("depth_levels" == token)
 			{
 				s >> depth_levels;
 			}
@@ -2550,6 +2559,14 @@ protected:
 			else if ("compressed" == token)
 			{
 				s >> compressed;
+			}
+			else if ("data_size" == token)
+			{
+				s >> data_size;
+			}
+			else if ("compressed_data_size" == token)
+			{
+				s >> compressed_data_size;
 			}
 			else
 			{
