@@ -43,7 +43,6 @@ UFOMapServer::UFOMapServer(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
 // Private functions
 void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
-	fprintf(stderr, "\tEnter insert\n");
 	try
 	{
 		ufomap::PointCloud cloud;
@@ -89,12 +88,10 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 	{
 		ROS_WARN_THROTTLE(1, "%s", ex.what());
 	}
-	fprintf(stderr, "\tExit insert\n");
 }
 
 void UFOMapServer::timerCallback(const ros::TimerEvent& event)
 {
-	fprintf(stderr, "Enter publish\n");
 	std_msgs::Header header;
 	header.stamp = ros::Time::now();
 	header.frame_id = frame_id_;
@@ -129,7 +126,6 @@ void UFOMapServer::timerCallback(const ros::TimerEvent& event)
 		cloud_msg->header = header;
 		cloud_pub_.publish(cloud_msg);
 	}
-	fprintf(stderr, "Exit publish\n");
 }
 
 void UFOMapServer::configCallback(ufomap_mapping::ServerConfig& config, uint32_t level)
