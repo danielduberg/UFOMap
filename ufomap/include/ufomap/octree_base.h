@@ -1496,8 +1496,8 @@ public:
 		float occupancy_thres;
 		float free_thres;
 		bool compressed;
-		uint64_t data_size;
-		uint64_t compressed_data_size;
+		int data_size;
+		int compressed_data_size;
 		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
 										compressed, data_size, compressed_data_size, is_ufomap))
 		{
@@ -1553,25 +1553,27 @@ public:
 		}
 	}
 
-	bool decompressData(std::istream& s_in, std::iostream& s_out, uint64_t data_size,
-											uint64_t compressed_data_size) const
+	bool decompressData(std::istream& s_in, std::iostream& s_out, int data_size,
+											int compressed_data_size) const
 	{
-		char compressed_data[compressed_data_size];
+		char* compressed_data = new char[compressed_data_size];
 		s_in.read(compressed_data, compressed_data_size);
-		char regen_buffer[data_size];
+		char* regen_buffer = new char[data_size];
 		const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
 																											compressed_data_size, data_size);
 		if (0 > decompressed_size)
 		{
 			return false;
 		}
-		s_out.write(regen_buffer, decompressed_size * sizeof(char));
+		s_out.write(regen_buffer, decompressed_size);
+		delete[] compressed_data;
+		delete[] regen_buffer;
 		return true;
 	}
 
 	bool readDataCompressed(std::istream& s, float resolution, unsigned int depth_levels,
-													float occupancy_thres, float free_thres, uint64_t data_size,
-													uint64_t compressed_data_size, bool binary = false,
+													float occupancy_thres, float free_thres, int data_size,
+													int compressed_data_size, bool binary = false,
 													bool from_octomap = false)
 	{
 		std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
@@ -1651,17 +1653,12 @@ public:
 		writeData(data, binary, to_octomap);
 		if (compress)
 		{
-			auto [data_size, compressed_data_size] = compressData(data, compressed_data);
-			s << "data_size " << data_size << std::endl;
-			s << "compressed_data_size " << compressed_data_size << std::endl;
-			s << "data" << std::endl;
-			s << compressed_data.rdbuf();
+			compressData(data, compressed_data);
 		}
-		else
-		{
-			s << "data" << std::endl;
-			s << data.rdbuf();
-		}
+		s << "data_size " << getDataSize(data) << std::endl;
+		s << "compressed_data_size " << getDataSize(compressed_data) << std::endl;
+		s << "data" << std::endl;
+		s << compress ? compressed_data.rdbuf() : data.rdbuf();
 
 		if (s.good())
 		{
@@ -1687,25 +1684,23 @@ public:
 		}
 	}
 
-	std::pair<uint64_t, uint64_t> compressData(std::istream& s_in,
-																						 std::ostream& s_out) const
+	std::pair<int, int> compressData(std::istream& s_in, std::ostream& s_out) const
 	{
-		s_in.seekg(0, s_in.end);
-		const uint64_t data_size = s_in.tellg();
-		s_in.seekg(0, s_in.beg);
-		char data[data_size];
+		const int data_size = getDataSize(s_in);
+		char* data = new char[data_size];
 		s_in.read(data, data_size);
 		const int max_dst_size = LZ4_compressBound(data_size);
-		char compressed_data[max_dst_size];
-		const uint64_t compressed_data_size =
+		char* compressed_data = new char[max_dst_size];
+		const int compressed_data_size =
 				LZ4_compress_default(data, compressed_data, data_size, max_dst_size);
-		s_out.write(compressed_data, compressed_data_size * sizeof(char));
+		s_out.write(compressed_data, compressed_data_size);
+		delete[] compressed_data;
+		delete[] data;
 		return std::make_pair(data_size, compressed_data_size);
 	}
 
-	bool writeDataCompress(std::ostream& s, uint64_t& data_size,
-												 uint64_t& compressed_data_size, bool binary = false,
-												 bool to_octomap = false) const
+	bool writeDataCompress(std::ostream& s, int& data_size, int& compressed_data_size,
+												 bool binary = false, bool to_octomap = false) const
 	{
 		std::stringstream data(std::ios_base::in | std::ios_base::out |
 													 std::ios_base::binary);
@@ -2495,7 +2490,7 @@ protected:
 
 	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
-									bool& compressed, uint64_t& data_size, uint64_t& compressed_data_size,
+									bool& compressed, int& data_size, int& compressed_data_size,
 									bool is_ufomap = true)
 	{
 		id = "";
@@ -2626,6 +2621,14 @@ protected:
 		}
 
 		return true;
+	}
+
+	int getDataSize(std::istream& s) const
+	{
+		s.seekg(0, s.end);
+		const int size = s.tellg();
+		s.seekg(0, s.beg);
+		return size;
 	}
 
 	bool readNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
