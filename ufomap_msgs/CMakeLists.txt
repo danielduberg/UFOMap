@@ -12,7 +12,17 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
+  AABB.msg
+  Bounding.msg
+  Frustum.msg
+  LineSegment.msg
+  OBB.msg
+  Plane.msg
+  Ray.msg
+  Sphere.msg
   Ufomap.msg
+  UfomapMetaData.msg
+  UfomapUpdate.msg
   UfomapWithPose.msg
 )
 
