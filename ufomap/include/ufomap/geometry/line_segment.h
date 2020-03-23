@@ -19,6 +19,21 @@ struct LineSegment
 	inline LineSegment(const Vector3& start, const Vector3& end) : start(start), end(end)
 	{
 	}
+
+	inline void translate(const Vector3& translation)
+	{
+		// TODO: Implement
+	}
+
+	inline void rotate(const Vector3& rotation)
+	{
+		// TODO: Implement
+	}
+
+	inline void transform(const Pose6& transform)
+	{
+		// TODO: Implement
+	}
 };
 }  // namespace ufomap_geometry
 

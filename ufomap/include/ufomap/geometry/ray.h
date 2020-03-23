@@ -20,6 +20,21 @@ struct Ray
 		: origin(origin), direction(direction.normalized())
 	{
 	}
+
+	inline void translate(const Vector3& translation)
+	{
+		// TODO: Implement
+	}
+
+	inline void rotate(const Vector3& rotation)
+	{
+		// TODO: Implement
+	}
+
+	inline void transform(const Pose6& transform)
+	{
+		// TODO: Implement
+	}
 };
 }  // namespace ufomap_geometry
 

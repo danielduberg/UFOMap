@@ -27,6 +27,21 @@ struct OBB
 		: center(center), half_size(half_size), rotation(rotation)
 	{
 	}
+
+	inline void translate(const Vector3& translation)
+	{
+		// TODO: Implement
+	}
+
+	inline void rotate(const Vector3& rotation)
+	{
+		// TODO: Implement
+	}
+
+	inline void transform(const Pose6& transform)
+	{
+		// TODO: Implement
+	}
 };
 }  // namespace ufomap_geometry
 

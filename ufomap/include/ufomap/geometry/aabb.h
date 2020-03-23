@@ -1,6 +1,7 @@
 #ifndef UFOMAP_GEOMETRY_AXIS_ALIGNED_BOUNDING_BOX_H
 #define UFOMAP_GEOMETRY_AXIS_ALIGNED_BOUNDING_BOX_H
 
+#include <ufomap/geometry/obb.h>
 #include <ufomap/math/vector3.h>
 
 using namespace ufomap_math;
@@ -34,6 +35,21 @@ struct AABB
 	Vector3 getMax() const
 	{
 		return center + half_size;
+	}
+
+	inline void translate(const Vector3& translation)
+	{
+		center += translation;
+	}
+
+	inline void rotate(const Vector3& rotation)
+	{
+		// TODO: Implement
+	}
+
+	inline OBB transform(const Pose6& transform) const
+	{
+		// TODO: Implement
 	}
 };
 }  // namespace ufomap_geometry
