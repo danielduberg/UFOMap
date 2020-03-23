@@ -2,6 +2,7 @@
 #define UFOMAP_ITERATOR_TREE_H
 
 #include <ufomap/geometry/intersects.h>
+#include <ufomap/geometry/types.h>
 #include <ufomap/iterator/base.h>
 
 #include <type_traits>
@@ -146,15 +147,32 @@ protected:
 
 		if constexpr (hasBegin<BOUNDING_TYPE>::value && hasEnd<BOUNDING_TYPE>::value)
 		{
-			for (auto it = bounding_type_.begin(), it_end = bounding_type_.end(); it != it_end;
-					 ++it)
+			for (auto& v : bounding_type_)
 			{
-				if (ufomap_geometry::intersects(aabb, *it))
+				if constexpr (std::is_same_v<BoundingVar, v>)
 				{
-					return true;
+					if (std::visit([aabb](auto&& arg)
+														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
+												 v))
+					{
+						return true;
+					}
+				}
+				else
+				{
+					if (ufomap_geometry::intersects(aabb, v))
+					{
+						return true;
+					}
 				}
 			}
 			return false;
+		}
+		else if constexpr (std::is_same_v<BoundingVar, bounding_type_>)
+		{
+			return std::visit(
+					[aabb](auto&& arg) -> bool { return ufomap_geometry::intersects(aabb, arg); },
+					bounding_type_);
 		}
 		else
 		{
