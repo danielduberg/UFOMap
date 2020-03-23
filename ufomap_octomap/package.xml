@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ufomap_octomap</name>
+  <version>1.0.0</version>
+  <description>The ufomap_octomap package</description>
+
+  <author email="dduberg@kth.se">Daniel Duberg</author>
+  <maintainer email="dduberg@kth.se">Daniel Duberg</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">https://github.com/danielduberg/ufomap_ros</url>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>octomap</depend>
+  <depend>ufomap</depend>
+  
+</package>
