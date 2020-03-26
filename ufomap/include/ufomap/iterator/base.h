@@ -128,7 +128,12 @@ public:
 
 	bool isLeaf() const
 	{
-		return isPureLeaf() || tree_->isLeaf(stack_.top());
+		return tree_->isLeaf(stack_.top());
+	}
+
+	bool hasChildren() const
+	{
+		return tree_->hasChildren(stack_.top());
 	}
 
 public:

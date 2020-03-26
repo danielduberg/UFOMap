@@ -1,5 +1,5 @@
-#ifndef UFOMAP_GEOMETRY_INTERSECTS_H
-#define UFOMAP_GEOMETRY_INTERSECTS_H
+#ifndef UFOMAP_GEOMETRY_COLLISION_CHECKS_H
+#define UFOMAP_GEOMETRY_COLLISION_CHECKS_H
 
 #include <ufomap/geometry/aabb.h>
 #include <ufomap/geometry/frustum.h>
@@ -111,6 +111,21 @@ bool intersects(const Ray& ray, const Vector3& point);
 
 bool intersects(const Vector3& point, const Ray& ray);
 
+// Inside
+bool inside(const AABB& aabb_1, const AABB& aabb_2);
+
+bool inside(const AABB& aabb, const Frustum& frustum);
+
+bool inside(const AABB& aabb, const LineSegment& line_segment);
+
+bool inside(const AABB& aabb, const OBB& obb);
+
+bool inside(const AABB& aabb, const Plane& plane);
+
+bool inside(const AABB& aabb, const Ray& ray);
+
+bool inside(const AABB& aabb, const Sphere& sphere);
+
 }  // namespace ufomap_geometry
 
-#endif  // UFOMAP_GEOMETRY_INTERSECTS_H
+#endif  // UFOMAP_GEOMETRY_COLLISION_CHECKS_H

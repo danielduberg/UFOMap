@@ -13,12 +13,12 @@ public:
 	{
 	}
 
-	LeafIterator(const TREE* tree, const BOUNDING_TYPE& bounding_type,
+	LeafIterator(const TREE* tree, const BOUNDING_TYPE& bounding_volume,
 							 bool occupied_space = true, bool free_space = true,
 							 bool unknown_space = true, bool contains = false,
 							 unsigned int min_depth = 0)
 		: TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>(
-					tree, bounding_type, occupied_space, free_space, unknown_space, contains,
+					tree, bounding_volume, occupied_space, free_space, unknown_space, contains,
 					min_depth)
 	{
 		if (!this->stack_.empty())

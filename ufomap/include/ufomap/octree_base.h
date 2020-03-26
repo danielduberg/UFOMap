@@ -47,8 +47,6 @@ public:
 
 	virtual std::string getTreeType() const = 0;
 
-	virtual std::string getTreeTypeOctomap() const = 0;
-
 	//
 	// Insertion
 	//
@@ -1458,22 +1456,21 @@ public:
 	}
 
 	//
-	// Read/write
+	// Read/write/update
 	//
 
-	bool read(const std::string& filename, unsigned int depth = 0)
+	bool read(const std::string& filename)
 	{
 		std::ifstream file(filename.c_str(), std::ios_base::in | std::ios_base::binary);
 		if (!file.is_open())
 		{
-			// TODO: Send out error
 			return false;
 		}
 		// TODO: check is_good of finished stream, warn?
 		return read(file);
 	}
 
-	bool read(std::istream& s, unsigned int depth = 0)
+	bool read(std::istream& s)
 	{
 		// check if first line valid:
 		std::string line;
@@ -1483,13 +1480,11 @@ public:
 		{
 			if (0 != line.compare(0, FILE_HEADER.length(), FILE_HEADER))
 			{
-				// TODO: Send out error
 				return false;
 			}
 		}
 		else if (!binarySupport())
 		{
-			// TODO: Send out error
 			return false;
 		}
 
@@ -1500,12 +1495,10 @@ public:
 		float occupancy_thres;
 		float free_thres;
 		bool compressed;
-		uint64_t data_size;
-		uint64_t compressed_data_size;
+		int data_size;
 		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
-										compressed, data_size, compressed_data_size))
+										compressed, data_size))
 		{
-			// TODO: Send out error
 			return false;
 		}
 
@@ -1513,24 +1506,23 @@ public:
 		{
 			std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
 																			 std::ios_base::binary);
-			if (decompressData(s, uncompressed_s, data_size, compressed_data_size))
+			if (decompressData(s, uncompressed_s, data_size))
 			{
 				return readData(uncompressed_s, res, depth_levels, occupancy_thres, free_thres,
 												binary);
 			}
-			// TODO: Send out error
 			return false;
 		}
 		else
 		{
 			return readData(s, res, depth_levels, occupancy_thres, free_thres, binary);
 		}
-		// TODO: Check size?
 	}
 
+	// data_size only used when compressed is true
 	bool readData(std::istream& s, float resolution, unsigned int depth_levels,
-								float occupancy_thres, float free_thres, bool binary = false,
-								unsigned int depth = 0)
+								float occupancy_thres, float free_thres, int data_size = -1,
+								bool compressed = false, bool binary = false)
 	{
 		if (binary && !binarySupport())
 		{
@@ -1543,54 +1535,36 @@ public:
 		}
 
 		clear(resolution, depth_levels);
-
 		root_ = InnerNode<LEAF_NODE>();
 
-		if (binary)
+		if (compressed)
 		{
-			return readBinaryNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
-																	 logit(free_thres));
+			std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
+																			 std::ios_base::binary);
+			if (decompressData(s, uncompressed_s, data_size))
+			{
+				return readData(uncompressed_s, resolution, depth_levels, occupancy_thres,
+												free_thres, data_size, false, binary);
+			}
+			return false;
 		}
 		else
 		{
-			return readNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
-														 logit(free_thres));
+			if (binary)
+			{
+				return readBinaryNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
+																		 logit(free_thres));
+			}
+			else
+			{
+				return readNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
+															 logit(free_thres));
+			}
 		}
-	}
-
-	bool decompressData(std::istream& s_in, std::iostream& s_out, uint64_t data_size,
-											uint64_t compressed_data_size) const
-	{
-		char compressed_data[compressed_data_size];
-		s_in.read(compressed_data, compressed_data_size);
-		char regen_buffer[data_size];
-		const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
-																											compressed_data_size, data_size);
-		if (0 > decompressed_size)
-		{
-			return false;
-		}
-		s_out.write(regen_buffer, decompressed_size * sizeof(char));
-		return true;
-	}
-
-	bool readDataCompressed(std::istream& s, float resolution, unsigned int depth_levels,
-													float occupancy_thres, float free_thres, uint64_t data_size,
-													uint64_t compressed_data_size, bool binary = false,
-													unsigned int depth = 0, bool from_octomap = false)
-	{
-		std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
-																		 std::ios_base::binary);
-		if (decompressData(s, uncompressed_s, data_size, compressed_data_size))
-		{
-			return readData(uncompressed_s, resolution, depth_levels, occupancy_thres,
-											free_thres, binary, from_octomap);
-		}
-		return false;
 	}
 
 	bool write(const std::string& filename, bool compress = false, bool binary = false,
-						 unsigned int depth = 0, bool to_octomap = false) const
+						 unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
@@ -1601,126 +1575,193 @@ public:
 
 		if (!file.is_open())
 		{
-			// ERROR
 			return false;
 		}
 		// TODO: check is_good of finished stream, return
-		write(file, compress, binary, to_octomap);
+		const bool success = write(file, compress, binary, depth);
 		file.close();
-		return true;
+		return success;
 	}
 
 	bool write(std::ostream& s, bool compress = false, bool binary = false,
-						 unsigned int depth = 0, bool to_octomap = false) const
+						 unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
 			return false;
 		}
 
-		if (to_octomap && (16 != depth_levels_ || "" == getTreeTypeOctomap()))
+		std::stringstream data(std::ios_base::in | std::ios_base::out |
+													 std::ios_base::binary);
+
+		auto [success, data_size] = writeData(data, compress, binary, depth);
+
+		if (!success)
 		{
 			return false;
 		}
 
-		if (to_octomap)
-		{
-			s << (binary ? BINARY_FILE_HEADER_OCTOMAP : FILE_HEADER_OCTOMAP);
-		}
-		else
-		{
-			s << (binary ? BINARY_FILE_HEADER : FILE_HEADER);
-		}
-
+		// Write header
+		s << (binary ? BINARY_FILE_HEADER : FILE_HEADER);
 		s << "\n# (feel free to add / change comments, but leave the first line as it "
 				 "is!)\n#\n";
-		if (to_octomap)
-		{
-			s << "id " << getTreeTypeOctomap() << std::endl;
-		}
-		else
-		{
-			s << "id " << getTreeType() << std::endl;
-		}
+		s << "id " << getTreeType() << std::endl;
 		s << "size " << size() << std::endl;
 		s << "res " << getResolution() << std::endl;
 		s << "depth_levels " << getTreeDepthLevels() << std::endl;
 		s << "occupancy_thres " << getOccupancyThres() << std::endl;
 		s << "free_thres " << getFreeThres() << std::endl;
 		s << "compressed " << compress << std::endl;
+		s << "data_size " << data_size << std::endl;
+		s << "data" << std::endl;
 
-		std::stringstream data(std::ios_base::in | std::ios_base::out |
-													 std::ios_base::binary);
-		std::stringstream compressed_data(std::ios_base::in | std::ios_base::out |
-																			std::ios_base::binary);
-		writeData(data, binary, to_octomap);
-		if (compress)
-		{
-			auto [data_size, compressed_data_size] = compressData(data, compressed_data);
-			s << "data_size " << data_size << std::endl;
-			s << "compressed_data_size " << compressed_data_size << std::endl;
-			s << "data" << std::endl;
-			s << compressed_data.rdbuf();
-		}
-		else
-		{
-			s << "data" << std::endl;
-			s << data.rdbuf();
-		}
+		// Write data
+		s << data.rdbuf();  // Is correct or do I have to change to begin first?
 
-		if (s.good())
-		{
-			return true;
-		}
-		return false;
+		return s.good();
 	}
 
-	bool writeData(std::ostream& s, bool binary = false, unsigned int depth = 0,
-								 bool to_octomap = false) const
+	// Return size of data
+	// NOT compressed data
+	std::pair<bool, int> writeData(std::ostream& s, bool compress = false,
+																 bool binary = false, unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
-			return false;
+			return std::make_pair(false, 0);
 		}
 
-		if (binary)
+		const std::streampos initial_write_position = s.tellp();
+
+		if (compress)
 		{
-			return writeBinaryNodesRecurs(s, root_, depth_levels_, to_octomap);
+			std::stringstream data(std::ios_base::in | std::ios_base::out |
+														 std::ios_base::binary);
+			auto [success, data_size] = writeData(data, false, binary, depth);
+			if (!success || !compressData(data, s, data_size))
+			{
+				return std::make_pair(false, 0);
+			}
 		}
 		else
 		{
-			return writeNodesRecurs(s, root_, depth_levels_, to_octomap);
+			if (binary)
+			{
+				if (!writeBinaryNodesRecurs(s, root_, depth_levels_, depth))
+				{
+					return std::make_pair(false, 0);
+				}
+			}
+			else
+			{
+				if (!writeNodesRecurs(s, root_, depth_levels_, depth))
+				{
+					return std::make_pair(false, 0);
+				}
+			}
 		}
+
+		// Return size of data
+		return std::make_pair(true, s.tellp() - initial_write_position);
 	}
 
-	std::pair<uint64_t, uint64_t> compressData(std::istream& s_in,
-																						 std::ostream& s_out) const
+	std::pair<bool, int> writeData(std::ostream& s,
+																 const ufomap_geometry::BoundingVar& bounding_volume,
+																 bool compress = false, bool binary = false,
+																 unsigned int depth = 0) const
 	{
-		s_in.seekg(0, s_in.end);
-		const uint64_t data_size = s_in.tellg();
-		s_in.seekg(0, s_in.beg);
-		char data[data_size];
-		s_in.read(data, data_size);
-		const int max_dst_size = LZ4_compressBound(data_size);
-		char compressed_data[max_dst_size];
-		const uint64_t compressed_data_size =
-				LZ4_compress_default(data, compressed_data, data_size, max_dst_size);
-		s_out.write(compressed_data, compressed_data_size * sizeof(char));
-		return std::make_pair(data_size, compressed_data_size);
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return writeData(s, temp, compress, binary, depth);
 	}
 
-	bool writeDataCompress(std::ostream& s, uint64_t& data_size,
-												 uint64_t& compressed_data_size, bool binary = false,
-												 unsigned int depth = 0, bool to_octomap = false) const
+	std::pair<bool, int> writeData(
+			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+			bool compress = false, bool binary = false, unsigned int depth = 0)
 	{
-		std::stringstream data(std::ios_base::in | std::ios_base::out |
-													 std::ios_base::binary);
-		if (!writeData(data, binary, to_octomap))
+		if (binary && !binarySupport())
 		{
+			return std::make_pair(false, 0);
+		}
+
+		const std::streampos initial_write_position = s.tellp();
+
+		if (compress)
+		{
+			std::stringstream data(std::ios_base::in | std::ios_base::out |
+														 std::ios_base::binary);
+			auto [success, data_size] =
+					writeData(data, , bounding_volume, false, binary, depth);
+			if (!success || !compressData(data, s, data_size))
+			{
+				return std::make_pair(false, 0);
+			}
+		}
+		else
+		{
+			if (binary)
+			{
+				if (!writeBinaryNodesRecurs(s, bounding_volume, root_, depth_levels_, depth))
+				{
+					return std::make_pair(false, 0);
+				}
+			}
+			else
+			{
+				if (!writeNodesRecurs(s, bounding_volume, root_, depth_levels_, depth))
+				{
+					return std::make_pair(false, 0);
+				}
+			}
+		}
+
+		// Return size of data
+		return std::make_pair(true, s.tellp() - initial_write_position);
+	}
+
+	bool updateData(std::istream& s, int data_size = -1, bool compressed = false,
+									bool binary = false, unsigned int depth = 0)
+	{
+		return updateData(s, ufomap_geometry::AABB(getMin(), getMax()), data_size, compressed,
+											binary, depth);
+	}
+
+	bool updateData(std::istream& s, const ufomap_geometry::BoundingVar& bounding_volume,
+									int data_size = -1, bool compressed = false, bool binary = false,
+									unsigned int depth = 0)
+	{
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return updateData(s, temp, data_size, compressed, binary, depth);
+	}
+
+	bool updateData(std::istream& s,
+									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+									int data_size = -1, bool compressed = false, bool binary = false,
+									unsigned int depth = 0)
+	{
+		if (compressed)
+		{
+			std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
+																			 std::ios_base::binary);
+			if (decompressData(s, uncompressed_s, data_size))
+			{
+				return updateData(uncompressed_s, bounding_volume, data_size, false, binary,
+													depth);
+			}
 			return false;
 		}
-		std::tie(data_size, compressed_data_size) = compressData(data, s);
-		return true;
+		else
+		{
+			if (binary)
+			{
+				return updateBinaryNodesRecurs(s, root_, depth_levels_, bounding_volume, depth);
+			}
+			else
+			{
+				return updateNodesRecurs(s, root_, depth_levels_, bounding_volume, depth);
+			}
+		}
 	}
 
 protected:
@@ -2468,17 +2509,16 @@ protected:
 
 	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
-									bool& compressed, uint64_t& data_size, uint64_t& compressed_data_size)
+									bool& compressed, int& data_size)
 	{
 		id = "";
 		size = 0;
 		res = 0.0;
 		depth_levels = 0;
-		occupancy_thres = 0.5;
-		free_thres = 0.5;
+		occupancy_thres = -1.0;
+		free_thres = -1.0;
 		compressed = false;
-		data_size = 0;
-		compressed_data_size = 0;
+		data_size = -1;
 
 		std::string token;
 		bool header_read = false;
@@ -2536,10 +2576,6 @@ protected:
 			{
 				s >> data_size;
 			}
-			else if ("compressed_data_size" == token)
-			{
-				s >> compressed_data_size;
-			}
 			else
 			{
 				// Other token
@@ -2581,6 +2617,11 @@ protected:
 		if (0 == depth_levels)
 		{
 			// Missing depth levels token
+			return false;
+		}
+
+		if (0 > data_size)
+		{
 			return false;
 		}
 
@@ -2641,19 +2682,18 @@ protected:
 	}
 
 	bool writeNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
-												unsigned int current_depth) const
+												unsigned int current_depth, unsigned int min_depth) const
 	{
 		static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
 																									free_thres_log_);
 
-		// 1 bit for each children; 0: empty, 1: allocated
+		// 1 bit for each child; 0: empty, 1: allocated
 		std::bitset<8> children;
-		if (hasChildren(node))
+		if (hasChildren(node) && current_depth > min_depth)
 		{
 			children.flip();
 		}
-
-		char children_char = (char)children.to_ulong();
+		const char children_char = (char)children.to_ulong();
 		s.write((char*)&children_char, sizeof(char));
 
 		if (children.any())
@@ -2672,18 +2712,383 @@ protected:
 				for (const InnerNode<LEAF_NODE>& child :
 						 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
 				{
-					writeNodesRecurs(s, child, current_depth - 1);
+					writeNodesRecurs(s, child, current_depth - 1, min_depth);
 				}
 			}
 		}
+		return true;
+	}
 
+	template <typename BOUNDING_TYPE>
+	bool writeNodes(std::ostream& s, const BOUNDING_TYPE& bounding_volume,
+									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+									unsigned int min_depth = 0) const
+	{
+		// 1 bit for each child; 0: empty, 1: allocated
+		std::bitset<8> children;
+		const char no_children_char = (char)children.to_ulong();
+		children.flip();
+		const char has_children_char = (char)children.to_ulong();
+		for (auto it = begin_tree_bounding(bounding_volume, true, true, true, false,
+																			 min_depth),
+							it_end = end_tree<const BOUNDING_TYPE&>();
+				 it != it_end; ++it)
+		{
+			static_cast<const LEAF_NODE*>(it->node)->writeData(s, occupancy_thres_log_,
+																												 free_thres_log_);
+			if (current_depth > min_depth && it.hasChildren())
+			{
+				s.write((char*)&has_children_char, sizeof(char));
+			}
+			else
+			{
+				s.write((char*)&no_children_char, sizeof(char));
+			}
+		}
+		return true;
+	}
+
+	bool writeNodes(std::ostream& s,
+									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+									unsigned int min_depth = 0) const
+	{
+		// 1 bit for each child; 0: empty, 1: allocated
+		std::bitset<8> children;
+		const char no_children_char = (char)children.to_ulong();
+		children.flip();
+		const char has_children_char = (char)children.to_ulong();
+		for (auto it = begin_tree_bounding(bounding_volume, true, true, true, false,
+																			 min_depth),
+							it_end = end_tree<const std::vector<ufomap_geometry::BoundingVar>&>();
+				 it != it_end; ++it)
+		{
+			static_cast<const LEAF_NODE*>(it->node)->writeData(s, occupancy_thres_log_,
+																												 free_thres_log_);
+			if (current_depth > min_depth && it.hasChildren())
+			{
+				s.write((char*)&has_children_char, sizeof(char));
+			}
+			else
+			{
+				s.write((char*)&no_children_char, sizeof(char));
+			}
+		}
 		return true;
 	}
 
 	virtual bool writeBinaryNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
-																			unsigned int current_depth) const
+																			unsigned int current_depth,
+																			unsigned int min_depth = 0) const
 	{
 		return false;
+	}
+
+	virtual bool writeBinaryNodesRecurs(
+			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+			const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+			unsigned int min_depth = 0) const
+	{
+		return false;
+	}
+
+	bool updateNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
+												 const Code& node_code, unsigned int current_depth,
+												 float occupancy_thres_log, float free_thres_log)
+	{
+		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
+
+		char children_char;
+		s.read((char*)&children_char, sizeof(char));
+		std::bitset<8> children((unsigned long)children_char);
+
+		if (children.any())
+		{
+			if (!node.hasChildren())
+			{
+				createChildren(node, current_depth);
+			}
+
+			Code child_code;
+			const unsigned int child_depth = current_depth - 1;
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				child_code = code.getChild(i);
+
+				if (0 == child_depth)
+				{
+					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
+							s, occupancy_thres_log, free_thres_log);
+				}
+				else
+				{
+					updateNodesRecurs(
+							s, (*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
+							child_code, child_depth, occupancy_thres_log, free_thres_log);
+				}
+			}
+		}
+		else if (node.hasChildren())
+		{
+			deleteChildren(node, current_depth);
+		}
+
+		updateNode(node, current_depth);  // To set indicators
+
+		return true;
+	}
+
+	template <typename BOUNDING_TYPE>
+	bool updateNodesRecurs(std::istream& s, const BOUNDING_TYPE& bounding_volume,
+												 InnerNode<LEAF_NODE>& node, const Code& node_code,
+												 unsigned int current_depth, float occupancy_thres_log,
+												 float free_thres_log)
+	{
+		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
+
+		char children_char;
+		s.read((char*)&children_char, sizeof(char));
+		std::bitset<8> children((unsigned long)children_char);
+
+		if (children.any())
+		{
+			if (!node.hasChildren())
+			{
+				createChildren(node, current_depth);
+			}
+
+			Code child_code;
+			const unsigned int child_depth = current_depth - 1;
+			ufomap_geometry::AABB aabb;
+			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
+					getNodeHalfSize(current_depth);
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				child_code = code.getChild(i);
+				aabb.center = keyToCoord(child_code.toKey());
+
+				if (!ufomap_geometry::intersects(aabb, bounding_volume))
+				{
+					return continue;
+				}
+
+				if (0 == child_depth)
+				{
+					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
+							s, occupancy_thres_log, free_thres_log);
+				}
+				else
+				{
+					updateNodesRecurs(
+							s, bounding_volume,
+							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
+							child_code, child_depth, occupancy_thres_log, free_thres_log);
+				}
+			}
+		}
+		else if (node.hasChildren())
+		{
+			Code child_code;
+			const unsigned int child_depth = current_depth - 1;
+			ufomap_geometry::AABB aabb;
+			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
+					getNodeHalfSize(current_depth);
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				child_code = code.getChild(i);
+				aabb.center = keyToCoord(child_code.toKey());
+
+				if (!ufomap_geometry::intersects(aabb, bounding_volume))
+				{
+					return continue;
+				}
+
+				if (0 == child_depth)
+				{
+					LEAF_NODE& child = (*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i];
+					child = static_cast<LEAF_NODE>(node);  // TODO: Does this work?
+				}
+				else
+				{
+					InnerNode<LEAF_NODE>& child =
+							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+					static_cast<LEAF_NODE&>(child) =
+							static_cast<LEAF_NODE>(node);  // TODO: Does this work
+					child.contains_free = isFreeLog(node.logit);
+					child.contains_unknown = isUnknownLog(node.logit);
+					child.all_children_same = true;
+					deleteChildren(child, child_depth);
+				}
+			}
+		}
+
+		updateNode(node, current_depth);  // To set indicators
+
+		return true;
+	}
+
+	bool updateNodesRecurs(std::istream& s,
+												 const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+												 InnerNode<LEAF_NODE>& node, const Code& node_code,
+												 unsigned int current_depth, float occupancy_thres_log,
+												 float free_thres_log)
+	{
+		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
+
+		char children_char;
+		s.read((char*)&children_char, sizeof(char));
+		std::bitset<8> children((unsigned long)children_char);
+
+		if (children.any())
+		{
+			if (!node.hasChildren())
+			{
+				createChildren(node, current_depth);
+			}
+
+			Code child_code;
+			const unsigned int child_depth = current_depth - 1;
+			ufomap_geometry::AABB aabb;
+			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
+					getNodeHalfSize(current_depth);
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				child_code = code.getChild(i);
+				aabb.center = keyToCoord(child_code.toKey());
+
+				bool intersects = false;
+				for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
+				{
+					if (std::visit([aabb](auto&& arg)
+														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
+												 bv))
+					{
+						intersects = true;
+						break;
+					}
+				}
+
+				if (!intersects)
+				{
+					return continue;
+				}
+
+				if (0 == child_depth)
+				{
+					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
+							s, occupancy_thres_log, free_thres_log);
+				}
+				else
+				{
+					updateNodesRecurs(
+							s, bounding_volume,
+							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
+							child_code, child_depth, occupancy_thres_log, free_thres_log);
+				}
+			}
+		}
+		else if (node.hasChildren())
+		{
+			Code child_code;
+			const unsigned int child_depth = current_depth - 1;
+			ufomap_geometry::AABB aabb;
+			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
+					getNodeHalfSize(current_depth);
+			for (unsigned int i = 0; i < 8; ++i)
+			{
+				child_code = code.getChild(i);
+				aabb.center = keyToCoord(child_code.toKey());
+
+				bool intersects = false;
+				for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
+				{
+					if (std::visit([aabb](auto&& arg)
+														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
+												 bv))
+					{
+						intersects = true;
+						break;
+					}
+				}
+
+				if (!intersects)
+				{
+					return continue;
+				}
+
+				if (0 == child_depth)
+				{
+					LEAF_NODE& child = (*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i];
+					child = static_cast<LEAF_NODE>(node);  // TODO: Does this work?
+				}
+				else
+				{
+					InnerNode<LEAF_NODE>& child =
+							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+					static_cast<LEAF_NODE&>(child) =
+							static_cast<LEAF_NODE>(node);  // TODO: Does this work
+					child.contains_free = isFreeLog(node.logit);
+					child.contains_unknown = isUnknownLog(node.logit);
+					child.all_children_same = true;
+					deleteChildren(child, child_depth);
+				}
+			}
+		}
+
+		updateNode(node, current_depth);  // To set indicators
+
+		return true;
+	}
+
+	//
+	// Compress/decompress
+	//
+
+	bool compressData(std::istream& s_in, std::ostream& s_out, int data_size) const
+	{
+		// Compress data
+		char data[data_size];
+		s_in.read(data, data_size);
+		const int max_dst_size = LZ4_compressBound(data_size);
+		char compressed_data[max_dst_size];
+		const int compressed_data_size =
+				LZ4_compress_default(data, compressed_data, data_size, max_dst_size);
+
+		// Check if compression successful
+		if (0 > compressed_data_size)
+		{
+			return false;
+		}
+
+		// Write compressed data to output stream
+		s_out.write(compressed_data, compressed_data_size);
+		return true;
+	}
+
+	bool decompressData(std::istream& s_in, std::iostream& s_out, int data_size) const
+	{
+		// Get size of compressed data
+		const std::streampos initial_read_position = s_in.tellg();
+		s_in.seekg(0, s_in.end);
+		const int compressed_data_size = s_in.tellg() - initial_read_position;
+		s_in.seekg(initial_read_position);
+
+		// Decompress data
+		char compressed_data[compressed_data_size];
+		s_in.read(compressed_data, compressed_data_size);
+		char regen_buffer[data_size];
+		const int decompressed_size = LZ4_decompress_safe(compressed_data, regen_buffer,
+																											compressed_data_size, data_size);
+
+		// Check if decompression successful
+		if (0 > decompressed_size)
+		{
+			return false;
+		}
+
+		// Write decompressed data to output stream
+		s_out.write(regen_buffer, decompressed_size);
+		return true;
 	}
 
 protected:
@@ -2731,10 +3136,6 @@ protected:
 	// File headers
 	inline static const std::string FILE_HEADER = "# UFOMap octree file";
 	inline static const std::string BINARY_FILE_HEADER = "# UFOMap octree binary file";
-	// To be able to read/write OctoMap files
-	inline static const std::string FILE_HEADER_OCTOMAP = "# Octomap OcTree file";
-	inline static const std::string BINARY_FILE_HEADER_OCTOMAP = "# Octomap OcTree binary "
-																															 "file";
 };
 }  // namespace ufomap
 

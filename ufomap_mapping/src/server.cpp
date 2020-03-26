@@ -99,7 +99,7 @@ void UFOMapServer::timerCallback(const ros::TimerEvent& event)
 	if (0 < map_pub_.getNumSubscribers() || map_pub_.isLatched())
 	{
 		ufomap_msgs::Ufomap msg;
-		ufomap_msgs::mapToMsg(map_, msg, false);
+		ufomap_msgs::mapToMsg(map_, msg, true);
 		msg.header = header;
 		map_pub_.publish(msg);
 	}

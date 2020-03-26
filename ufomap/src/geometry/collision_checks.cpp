@@ -1,4 +1,4 @@
-#include <ufomap/geometry/intersects.h>
+#include <ufomap/geometry/collision_checks.h>
 
 #include <limits>
 
@@ -725,6 +725,63 @@ bool intersects(const Ray& ray, const Vector3& point)
 bool intersects(const Vector3& point, const Ray& ray)
 {
 	return intersects(ray, point);
+}
+
+// Inside
+
+bool inside(const AABB& aabb_1, const AABB& aabb_2)
+{
+	ufomap_math::Vector3 min_1 = aabb_1.getMin();
+	ufomap_math::Vector3 max_1 = aabb_1.getMax();
+	ufomap_math::Vector3 min_2 = aabb_2.getMin();
+	ufomap_math::Vector3 max_2 = aabb_2.getMax();
+
+	return min_1.x() >= min_2.x() && min_1.y() >= min_2.y() && min_1.z() >= min_2.z() &&
+				 max_1.x() <= max_2.x() && max_1.y() <= max_2.y() && max_1.z() <= max_2.z();
+}
+
+bool inside(const AABB& aabb, const Frustum& frustum)
+{
+	// TODO: Implement
+	return false;
+}
+
+bool inside(const AABB& aabb, const LineSegment& line_segment)
+{
+	return false;
+}
+
+bool inside(const AABB& aabb, const OBB& obb)
+{
+	// TODO: Implement
+	return false;
+}
+
+bool inside(const AABB& aabb, const Plane& plane)
+{
+	return false;
+}
+
+bool inside(const AABB& aabb, const Ray& ray)
+{
+	return false;
+}
+
+bool inside(const AABB& aabb, const Sphere& sphere)
+{
+	const float radius_squared = sphere.radius * sphere.radius;
+
+	ufomap_math::Vector3 min = aabb.getMin();
+	ufomap_math::Vector3 max = aabb.getMax();
+
+	if ((sphere.center - min).squaredNorm() > radius_squared ||
+			(sphere.center - max).squaredNorm() > radius_squared)
+	{
+		return false;
+	}
+
+	// TODO: Get other size vertices
+	return false;
 }
 
 }  // namespace ufomap_geometry
