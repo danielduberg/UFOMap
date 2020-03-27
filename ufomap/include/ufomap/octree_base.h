@@ -1780,9 +1780,9 @@ protected:
 		, clamping_thres_max_log_(logit(clamping_thres_max))
 		, automatic_pruning_enabled_(automatic_pruning)
 	{
-		if (21 < depth_levels)
+		if (2 > depth_levels || 21 < depth_levels)
 		{
-			throw std::invalid_argument("depth_levels can be maximum 21");
+			throw std::invalid_argument("depth_levels can be minimum 2 and maximum 21");
 		}
 
 		nodes_sizes_.reserve(depth_levels_ + 1);
@@ -2681,13 +2681,9 @@ protected:
 		return false;
 	}
 
-	bool writeNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
-												unsigned int current_depth, unsigned int min_depth) const
+	bool writeNodes(std::ostream& s, const InnerNode<LEAF_NODE>& node,
+									unsigned int current_depth, unsigned int min_depth) const
 	{
-		static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
-																									free_thres_log_);
-
-		// 1 bit for each child; 0: empty, 1: allocated
 		std::bitset<8> children;
 		if (hasChildren(node) && current_depth > min_depth)
 		{
@@ -2696,27 +2692,98 @@ protected:
 		const char children_char = (char)children.to_ulong();
 		s.write((char*)&children_char, sizeof(char));
 
-		if (children.any())
+		if (!children.any())
 		{
-			// Recursively write children
-			if (1 == current_depth)
+			static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
+																										free_thres_log_);
+			return true;
+		}
+		return writeNodesRecurs(s, node, current_depth, min_depth);
+	}
+
+	bool writeNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
+												unsigned int current_depth, unsigned int min_depth) const
+	{
+		unsigned int child_depth = current_depth - 1;
+
+		// 1 bit for each child; 0: leaf child, 1: child has children
+		std::bitset<8> children;
+		if (child_depth > min_depth)
+		{
+			std::array<InnerNode<LEAF_NODE>, 8>& child_arr =
+					*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children);
+			for (size_t i = 0; i < child_arr.size(); ++i)
 			{
-				for (const LEAF_NODE& child :
-						 *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
+				if (hasChildren(child_arr[i]))
 				{
-					child.writeData(s, occupancy_thres_log_, free_thres_log_);
+					children.set(i);
+				}
+			}
+		}
+		const char children_char = (char)children.to_ulong();
+		s.write((char*)&children_char, sizeof(char));
+
+		for (size_t i = 0; i < children.size(); ++i)
+		{
+			const InnerNode<LEAF_NODE>& child =
+					(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+			if (children[i])
+			{
+				if (1 == child_depth)
+				{
+					for (const LEAF_NODE& childs_child :
+							 *static_cast<std::array<LEAF_NODE, 8>*>(child.children))
+					{
+						childs_child.writeData(s, occupancy_thres_log_, free_thres_log_);
+					}
+				}
+				else
+				{
+					writeNodesRecurs(s, child, child_depth, min_depth);
 				}
 			}
 			else
 			{
-				for (const InnerNode<LEAF_NODE>& child :
-						 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
-				{
-					writeNodesRecurs(s, child, current_depth - 1, min_depth);
-				}
+				static_cast<const LEAF_NODE&>(child).writeData(s, occupancy_thres_log_,
+																											 free_thres_log_);
 			}
 		}
+
 		return true;
+
+		// static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
+		// 																							free_thres_log_);
+
+		// // 1 bit for each child; 0: empty, 1: allocated
+		// std::bitset<8> children;
+		// if (hasChildren(node) && current_depth > min_depth)
+		// {
+		// 	children.flip();
+		// }
+		// const char children_char = (char)children.to_ulong();
+		// s.write((char*)&children_char, sizeof(char));
+
+		// if (children.any())
+		// {
+		// 	// Recursively write children
+		// 	if (1 == current_depth)
+		// 	{
+		// 		for (const LEAF_NODE& child :
+		// 				 *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
+		// 		{
+		// 			child.writeData(s, occupancy_thres_log_, free_thres_log_);
+		// 		}
+		// 	}
+		// 	else
+		// 	{
+		// 		for (const InnerNode<LEAF_NODE>& child :
+		// 				 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
+		// 		{
+		// 			writeNodesRecurs(s, child, current_depth - 1, min_depth);
+		// 		}
+		// 	}
+		// }
+		// return true;
 	}
 
 	template <typename BOUNDING_TYPE>
