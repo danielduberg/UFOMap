@@ -2498,6 +2498,48 @@ protected:
 		return logit(mean);
 	}
 
+	Point3 getChildCenter(const Point3& center, float half_size,
+												unsigned int child_idx) const
+	{
+		Point3 child_center(center);
+		float child_half_size = half_size / 2.0;
+		child_center[0] +=
+				(child_idx & 1) ? -child_half_size : child_half_size;  // TODO: Correct?
+		child_center[1] +=
+				(child_idx & 2) ? -child_half_size : child_half_size;  // TODO: Correct?
+		child_center[2] +=
+				(child_idx & 4) ? -child_half_size : child_half_size;  // TODO: Correct?
+		return child_center;
+	}
+
+	Point3 getChildCenter(const Point3& center, unsigned int depth,
+												unsigned int child_idx) const
+	{
+		return getChildCenter(center, getNodeHalfSize(depth), child_idx);
+	}
+
+	bool intersects(const ufomap_geometry::AABB& aabb,
+									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume) const
+	{
+		for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
+		{
+			if (std::visit([aabb](auto&& arg)
+												 -> bool { return ufomap_geometry::intersects(aabb, arg); },
+										 bv))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool intersects(const Point3& center, float half_size,
+									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume) const
+	{
+		return intersects(ufomap_geometry::AABB(center - half_size, center + half_size),
+											bounding_volume);
+	}
+
 	//
 	// Read/write
 	//
@@ -2634,56 +2676,159 @@ protected:
 		return true;
 	}
 
-	bool readNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
-											 unsigned int current_depth, float occupancy_thres_log,
-											 float free_thres_log)
+	bool readNodes(std::istream& s, InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+								 float occupancy_thres_log, float free_thres_log)
 	{
-		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
-		node.all_children_same = true;
+		return readNodes(s, std::vector<ufomap_geometry::BoundingVar>(), node, current_depth,
+										 occupancy_thres_log, free_thres_log);
+	}
+
+	bool readNodes(std::istream& s, const ufomap_geometry::BoundingVar& bounding_volume,
+								 InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+								 float occupancy_thres_log, float free_thres_log)
+	{
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return readNodes(s, temp, node, current_depth, occupancy_thres_log, free_thres_log);
+	}
+
+	bool readNodes(std::istream& s,
+								 const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+								 InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+								 float occupancy_thres_log, float free_thres_log)
+	{
+		// Check if inside bounding_volume
+		const Point3 center(0, 0, 0);
+		float half_size = getNodeHalfSize(current_depth);
+		if (!bounding_volume.empty() && !intersects(center, half_size, bounding_volume))
+		{
+			return true;  // No node intersects
+		}
 
 		char children_char;
 		s.read((char*)&children_char, sizeof(char));
-		std::bitset<8> children((unsigned long long)children_char);
+		const std::bitset<8> children((unsigned long)children_char);
+
+		bool success;
+		if (!children.any())
+		{
+			static_cast<const LEAF_NODE&>(node).readData(s, occupancy_thres_log,
+																									 free_thres_log);
+			deleteChildren(node, current_depth);
+			success = true;
+		}
+		else
+		{
+			success = readNodesRecurs(s, bounding_volume, node, center, current_depth,
+																occupancy_thres_log, free_thres_log);
+		}
+
+		updateNode(node, current_depth);
+		return success;
+	}
+
+	bool readNodesRecurs(std::istream& s,
+											 const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+											 InnerNode<LEAF_NODE>& node, const Point3& center,
+											 unsigned int current_depth, float occupancy_thres_log,
+											 float free_thres_log)
+	{
+		const unsigned int child_depth = current_depth - 1;
+		const float child_half_size = getNodeHalfSize(child_depth);
+
+		char children_char;
+		s.read((char*)&children_char, sizeof(char));
+		const std::bitset<8> children((unsigned long)children_char);
+
+		std::bitset<8> child_intersects;
+		std::array<Point3, 8> child_centers;
+		std::array<InnerNode<LEAF_NODE>, 8>& child_arr =
+				*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children);
+		for (size_t i = 0; i < child_arr.size(); ++i)
+		{
+			child_centers[i] = getChildCenter(center, current_depth, i);
+			child_intersects[i] =
+					bounding_volume.empty() ||
+					intersects(child_centers[i], child_half_size, bounding_volume);
+		}
 
 		if (children.any())
 		{
 			createChildren(node, current_depth);
+		}
 
-			// FIXME: Check so correct order
+		for (size_t i = 0; i < children.size(); ++i)
+		{
+			if (child_intersects[i])
+			{
+				const InnerNode<LEAF_NODE>& child =
+						(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+				if (children[i])
+				{
+					if (1 == child_depth)
+					{
+						const float child_child_half_size = getNodeHalfSize(0);
+						std::array<LEAF_NODE, 8>& child_children_arr =
+								*static_cast<std::array<LEAF_NODE, 8>*>(child.children);
+						for (size_t j = 0; j < child_children_arr.size(); ++j)
+						{
+							if (bounding_volume.empty() ||
+									intersects(getChildCenter(child_centers[i], child_depth, j),
+														 child_child_half_size, bounding_volume))
+							{
+								child_children_arr[j].readData(s, occupancy_thres_log_, free_thres_log_);
+							}
+						}
+					}
+					else
+					{
+						readNodesRecurs(s, bounding_volume, child, child_centers[i], child_depth,
+														occupancy_thres_log, free_thres_log);
+					}
+				}
+				else
+				{
+					static_cast<const LEAF_NODE&>(child).readData(s, occupancy_thres_log,
+																												free_thres_log);
+					deleteChildren(child);
+				}
 
-			if (1 == current_depth)
-			{
-				for (LEAF_NODE& child : *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
-				{
-					child.readData(s, occupancy_thres_log, free_thres_log);
-				}
-			}
-			else
-			{
-				for (InnerNode<LEAF_NODE>& child :
-						 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
-				{
-					readNodesRecurs(s, child, current_depth - 1, occupancy_thres_log,
-													free_thres_log);
-				}
+				updateNode(child, child_depth);
 			}
 		}
 
-		updateNode(node, current_depth);  // To set indicators
-
 		return true;
-	}
-
-	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
-																		 unsigned int current_depth,
-																		 float occupancy_thres_log, float free_thres_log)
-	{
-		return false;
 	}
 
 	bool writeNodes(std::ostream& s, const InnerNode<LEAF_NODE>& node,
 									unsigned int current_depth, unsigned int min_depth) const
 	{
+		return writeNodes(s, std::vector<ufomap_geometry::BoundingVar>(), node, current_depth,
+											min_depth);
+	}
+
+	bool writeNodes(std::ostream& s, const ufomap_geometry::BoundingVar& bounding_volume,
+									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+									unsigned int min_depth = 0) const
+	{
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return writeNodes(s, temp, node, current_depth, min_depth);
+	}
+
+	bool writeNodes(std::ostream& s,
+									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+									unsigned int min_depth = 0) const
+	{
+		// Check if inside bounding_volume
+		const Point3 center(0, 0, 0);
+		float half_size = getNodeHalfSize(current_depth);
+		if (!bounding_volume.empty() && !intersects(center, half_size, bounding_volume))
+		{
+			return true;  // No node intersects
+		}
+
 		std::bitset<8> children;
 		if (hasChildren(node) && current_depth > min_depth)
 		{
@@ -2698,26 +2843,33 @@ protected:
 																										free_thres_log_);
 			return true;
 		}
-		return writeNodesRecurs(s, node, current_depth, min_depth);
+		return writeNodesRecurs(s, bounding_volume, node, center, current_depth, min_depth);
 	}
 
-	bool writeNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
-												unsigned int current_depth, unsigned int min_depth) const
+	// NOTE: If bounding_volume has size 0 means all nodes will be written
+	bool writeNodesRecurs(std::ostream& s,
+												const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+												const InnerNode<LEAF_NODE>& node, const Point3& center,
+												unsigned int current_depth, unsigned int min_depth = 0) const
 	{
-		unsigned int child_depth = current_depth - 1;
+		const unsigned int child_depth = current_depth - 1;
+		const float child_half_size = getNodeHalfSize(child_depth);
 
 		// 1 bit for each child; 0: leaf child, 1: child has children
 		std::bitset<8> children;
+		std::bitset<8> child_intersects;
+		std::array<Point3, 8> child_centers;
 		if (child_depth > min_depth)
 		{
 			std::array<InnerNode<LEAF_NODE>, 8>& child_arr =
 					*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children);
 			for (size_t i = 0; i < child_arr.size(); ++i)
 			{
-				if (hasChildren(child_arr[i]))
-				{
-					children.set(i);
-				}
+				child_centers[i] = getChildCenter(center, current_depth, i);
+				child_intersects[i] =
+						bounding_volume.empty() ||
+						intersects(child_centers[i], child_half_size, bounding_volume);
+				children[i] = child_intersects[i] && hasChildren(child_arr[i]);
 			}
 		}
 		const char children_char = (char)children.to_ulong();
@@ -2725,385 +2877,118 @@ protected:
 
 		for (size_t i = 0; i < children.size(); ++i)
 		{
-			const InnerNode<LEAF_NODE>& child =
-					(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
-			if (children[i])
+			if (child_intersects[i])
 			{
-				if (1 == child_depth)
+				const InnerNode<LEAF_NODE>& child =
+						(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+				if (children[i])
 				{
-					for (const LEAF_NODE& childs_child :
-							 *static_cast<std::array<LEAF_NODE, 8>*>(child.children))
+					if (1 == child_depth)
 					{
-						childs_child.writeData(s, occupancy_thres_log_, free_thres_log_);
+						const float child_child_half_size = getNodeHalfSize(0);
+						std::array<LEAF_NODE, 8>& child_children_arr =
+								*static_cast<std::array<LEAF_NODE, 8>*>(child.children);
+						for (size_t j = 0; j < child_children_arr.size(); ++j)
+						{
+							if (bounding_volume.empty() ||
+									intersects(getChildCenter(child_centers[i], child_depth, j),
+														 child_child_half_size, bounding_volume))
+							{
+								child_children_arr[j].writeData(s, occupancy_thres_log_, free_thres_log_);
+							}
+						}
+					}
+					else
+					{
+						return writeNodesRecurs(s, bounding_volume, child, child_centers[i],
+																		child_depth, min_depth);
 					}
 				}
 				else
 				{
-					writeNodesRecurs(s, child, child_depth, min_depth);
+					static_cast<const LEAF_NODE&>(child).writeData(s, occupancy_thres_log_,
+																												 free_thres_log_);
 				}
 			}
-			else
-			{
-				static_cast<const LEAF_NODE&>(child).writeData(s, occupancy_thres_log_,
-																											 free_thres_log_);
-			}
 		}
 
 		return true;
-
-		// static_cast<const LEAF_NODE&>(node).writeData(s, occupancy_thres_log_,
-		// 																							free_thres_log_);
-
-		// // 1 bit for each child; 0: empty, 1: allocated
-		// std::bitset<8> children;
-		// if (hasChildren(node) && current_depth > min_depth)
-		// {
-		// 	children.flip();
-		// }
-		// const char children_char = (char)children.to_ulong();
-		// s.write((char*)&children_char, sizeof(char));
-
-		// if (children.any())
-		// {
-		// 	// Recursively write children
-		// 	if (1 == current_depth)
-		// 	{
-		// 		for (const LEAF_NODE& child :
-		// 				 *static_cast<std::array<LEAF_NODE, 8>*>(node.children))
-		// 		{
-		// 			child.writeData(s, occupancy_thres_log_, free_thres_log_);
-		// 		}
-		// 	}
-		// 	else
-		// 	{
-		// 		for (const InnerNode<LEAF_NODE>& child :
-		// 				 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))
-		// 		{
-		// 			writeNodesRecurs(s, child, current_depth - 1, min_depth);
-		// 		}
-		// 	}
-		// }
-		// return true;
 	}
 
-	template <typename BOUNDING_TYPE>
-	bool writeNodes(std::ostream& s, const BOUNDING_TYPE& bounding_volume,
-									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
-									unsigned int min_depth = 0) const
+	// Read/write binary
+
+	bool readBinaryNodes(std::istream& s, InnerNode<LEAF_NODE>& node,
+											 unsigned int current_depth, float occupancy_thres_log,
+											 float free_thres_log)
 	{
-		// 1 bit for each child; 0: empty, 1: allocated
-		std::bitset<8> children;
-		const char no_children_char = (char)children.to_ulong();
-		children.flip();
-		const char has_children_char = (char)children.to_ulong();
-		for (auto it = begin_tree_bounding(bounding_volume, true, true, true, false,
-																			 min_depth),
-							it_end = end_tree<const BOUNDING_TYPE&>();
-				 it != it_end; ++it)
-		{
-			static_cast<const LEAF_NODE*>(it->node)->writeData(s, occupancy_thres_log_,
-																												 free_thres_log_);
-			if (current_depth > min_depth && it.hasChildren())
-			{
-				s.write((char*)&has_children_char, sizeof(char));
-			}
-			else
-			{
-				s.write((char*)&no_children_char, sizeof(char));
-			}
-		}
+		return readBinaryNodes(s, std::vector<ufomap_geometry::BoundingVar>(), node,
+													 current_depth, occupancy_thres_log, free_thres_log);
+	}
+
+	bool readBinaryNodes(std::istream& s,
+											 const ufomap_geometry::BoundingVar& bounding_volume,
+											 InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+											 float occupancy_thres_log, float free_thres_log)
+	{
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return readBinaryNodes(s, temp, node, current_depth, occupancy_thres_log,
+													 free_thres_log);
+	}
+
+	// NOTE: If bounding_volume has size 0 means all nodes will be written
+	virtual bool readBinaryNodes(
+			std::istream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+			InnerNode<LEAF_NODE>& node, unsigned int current_depth, float occupancy_thres_log,
+			float free_thres_log)
+	{  // TODO: Implement
 		return true;
 	}
 
-	bool writeNodes(std::ostream& s,
-									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
-									const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
-									unsigned int min_depth = 0) const
+	// NOTE: If bounding_volume has size 0 means all nodes will be written
+	virtual bool readBinaryNodesRecurs(
+			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+			const InnerNode<LEAF_NODE>& node, const Point3& center, unsigned int current_depth,
+			float occupancy_thres_log, float free_thres_log) const
 	{
-		// 1 bit for each child; 0: empty, 1: allocated
-		std::bitset<8> children;
-		const char no_children_char = (char)children.to_ulong();
-		children.flip();
-		const char has_children_char = (char)children.to_ulong();
-		for (auto it = begin_tree_bounding(bounding_volume, true, true, true, false,
-																			 min_depth),
-							it_end = end_tree<const std::vector<ufomap_geometry::BoundingVar>&>();
-				 it != it_end; ++it)
-		{
-			static_cast<const LEAF_NODE*>(it->node)->writeData(s, occupancy_thres_log_,
-																												 free_thres_log_);
-			if (current_depth > min_depth && it.hasChildren())
-			{
-				s.write((char*)&has_children_char, sizeof(char));
-			}
-			else
-			{
-				s.write((char*)&no_children_char, sizeof(char));
-			}
-		}
+		// TODO: Implement
 		return true;
 	}
 
-	virtual bool writeBinaryNodesRecurs(std::ostream& s, const InnerNode<LEAF_NODE>& node,
-																			unsigned int current_depth,
-																			unsigned int min_depth = 0) const
+	bool writeBinaryNodes(std::ostream& s, const InnerNode<LEAF_NODE>& node,
+												unsigned int current_depth, unsigned int min_depth = 0) const
 	{
-		return false;
+		return writeBinaryNodes(s, std::vector<ufomap_geometry::BoundingVar>(), node,
+														current_depth, min_depth);
 	}
 
-	virtual bool writeBinaryNodesRecurs(
+	bool writeBinaryNodes(std::ostream& s,
+												const ufomap_geometry::BoundingVar& bounding_volume,
+												const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
+												unsigned int min_depth = 0) const
+	{
+		std::vector<ufomap_geometry::BoundingVar> temp;
+		temp.push_back(bounding_volume);
+		return writeBinaryNodes(s, temp, node, current_depth, min_depth);
+	}
+
+	// NOTE: If bounding_volume has size 0 means all nodes will be written
+	virtual bool writeBinaryNodes(
 			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
 			const InnerNode<LEAF_NODE>& node, unsigned int current_depth,
 			unsigned int min_depth = 0) const
 	{
-		return false;
-	}
-
-	bool updateNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
-												 const Code& node_code, unsigned int current_depth,
-												 float occupancy_thres_log, float free_thres_log)
-	{
-		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
-
-		char children_char;
-		s.read((char*)&children_char, sizeof(char));
-		std::bitset<8> children((unsigned long)children_char);
-
-		if (children.any())
-		{
-			if (!node.hasChildren())
-			{
-				createChildren(node, current_depth);
-			}
-
-			Code child_code;
-			const unsigned int child_depth = current_depth - 1;
-			for (unsigned int i = 0; i < 8; ++i)
-			{
-				child_code = code.getChild(i);
-
-				if (0 == child_depth)
-				{
-					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
-							s, occupancy_thres_log, free_thres_log);
-				}
-				else
-				{
-					updateNodesRecurs(
-							s, (*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
-							child_code, child_depth, occupancy_thres_log, free_thres_log);
-				}
-			}
-		}
-		else if (node.hasChildren())
-		{
-			deleteChildren(node, current_depth);
-		}
-
-		updateNode(node, current_depth);  // To set indicators
-
+		// TODO: Implement
 		return true;
 	}
 
-	template <typename BOUNDING_TYPE>
-	bool updateNodesRecurs(std::istream& s, const BOUNDING_TYPE& bounding_volume,
-												 InnerNode<LEAF_NODE>& node, const Code& node_code,
-												 unsigned int current_depth, float occupancy_thres_log,
-												 float free_thres_log)
+	// NOTE: If bounding_volume has size 0 means all nodes will be written
+	virtual bool writeBinaryNodesRecurs(
+			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
+			const InnerNode<LEAF_NODE>& node, const Point3& center, unsigned int current_depth,
+			unsigned int min_depth = 0) const
 	{
-		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
-
-		char children_char;
-		s.read((char*)&children_char, sizeof(char));
-		std::bitset<8> children((unsigned long)children_char);
-
-		if (children.any())
-		{
-			if (!node.hasChildren())
-			{
-				createChildren(node, current_depth);
-			}
-
-			Code child_code;
-			const unsigned int child_depth = current_depth - 1;
-			ufomap_geometry::AABB aabb;
-			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
-					getNodeHalfSize(current_depth);
-			for (unsigned int i = 0; i < 8; ++i)
-			{
-				child_code = code.getChild(i);
-				aabb.center = keyToCoord(child_code.toKey());
-
-				if (!ufomap_geometry::intersects(aabb, bounding_volume))
-				{
-					return continue;
-				}
-
-				if (0 == child_depth)
-				{
-					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
-							s, occupancy_thres_log, free_thres_log);
-				}
-				else
-				{
-					updateNodesRecurs(
-							s, bounding_volume,
-							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
-							child_code, child_depth, occupancy_thres_log, free_thres_log);
-				}
-			}
-		}
-		else if (node.hasChildren())
-		{
-			Code child_code;
-			const unsigned int child_depth = current_depth - 1;
-			ufomap_geometry::AABB aabb;
-			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
-					getNodeHalfSize(current_depth);
-			for (unsigned int i = 0; i < 8; ++i)
-			{
-				child_code = code.getChild(i);
-				aabb.center = keyToCoord(child_code.toKey());
-
-				if (!ufomap_geometry::intersects(aabb, bounding_volume))
-				{
-					return continue;
-				}
-
-				if (0 == child_depth)
-				{
-					LEAF_NODE& child = (*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i];
-					child = static_cast<LEAF_NODE>(node);  // TODO: Does this work?
-				}
-				else
-				{
-					InnerNode<LEAF_NODE>& child =
-							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
-					static_cast<LEAF_NODE&>(child) =
-							static_cast<LEAF_NODE>(node);  // TODO: Does this work
-					child.contains_free = isFreeLog(node.logit);
-					child.contains_unknown = isUnknownLog(node.logit);
-					child.all_children_same = true;
-					deleteChildren(child, child_depth);
-				}
-			}
-		}
-
-		updateNode(node, current_depth);  // To set indicators
-
-		return true;
-	}
-
-	bool updateNodesRecurs(std::istream& s,
-												 const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
-												 InnerNode<LEAF_NODE>& node, const Code& node_code,
-												 unsigned int current_depth, float occupancy_thres_log,
-												 float free_thres_log)
-	{
-		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
-
-		char children_char;
-		s.read((char*)&children_char, sizeof(char));
-		std::bitset<8> children((unsigned long)children_char);
-
-		if (children.any())
-		{
-			if (!node.hasChildren())
-			{
-				createChildren(node, current_depth);
-			}
-
-			Code child_code;
-			const unsigned int child_depth = current_depth - 1;
-			ufomap_geometry::AABB aabb;
-			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
-					getNodeHalfSize(current_depth);
-			for (unsigned int i = 0; i < 8; ++i)
-			{
-				child_code = code.getChild(i);
-				aabb.center = keyToCoord(child_code.toKey());
-
-				bool intersects = false;
-				for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
-				{
-					if (std::visit([aabb](auto&& arg)
-														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
-												 bv))
-					{
-						intersects = true;
-						break;
-					}
-				}
-
-				if (!intersects)
-				{
-					return continue;
-				}
-
-				if (0 == child_depth)
-				{
-					(*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i].readData(
-							s, occupancy_thres_log, free_thres_log);
-				}
-				else
-				{
-					updateNodesRecurs(
-							s, bounding_volume,
-							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i],
-							child_code, child_depth, occupancy_thres_log, free_thres_log);
-				}
-			}
-		}
-		else if (node.hasChildren())
-		{
-			Code child_code;
-			const unsigned int child_depth = current_depth - 1;
-			ufomap_geometry::AABB aabb;
-			aabb.half_size.x() = aabb.half_size.y() = aabb.half_size.z() =
-					getNodeHalfSize(current_depth);
-			for (unsigned int i = 0; i < 8; ++i)
-			{
-				child_code = code.getChild(i);
-				aabb.center = keyToCoord(child_code.toKey());
-
-				bool intersects = false;
-				for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
-				{
-					if (std::visit([aabb](auto&& arg)
-														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
-												 bv))
-					{
-						intersects = true;
-						break;
-					}
-				}
-
-				if (!intersects)
-				{
-					return continue;
-				}
-
-				if (0 == child_depth)
-				{
-					LEAF_NODE& child = (*static_cast<std::array<LEAF_NODE, 8>*>(node.children))[i];
-					child = static_cast<LEAF_NODE>(node);  // TODO: Does this work?
-				}
-				else
-				{
-					InnerNode<LEAF_NODE>& child =
-							(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
-					static_cast<LEAF_NODE&>(child) =
-							static_cast<LEAF_NODE>(node);  // TODO: Does this work
-					child.contains_free = isFreeLog(node.logit);
-					child.contains_unknown = isUnknownLog(node.logit);
-					child.all_children_same = true;
-					deleteChildren(child, child_depth);
-				}
-			}
-		}
-
-		updateNode(node, current_depth);  // To set indicators
-
+		// TODO: Implement
 		return true;
 	}
 

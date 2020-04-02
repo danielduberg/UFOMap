@@ -46,6 +46,18 @@ struct OccupancyNode
 		s.read((char*)&logit, sizeof(logit));
 		return s;
 	}
+
+	std::ostream& writeBinaryData(std::ostream& s, float occupancy_thres_log,
+																float free_thres_log) const
+	{
+		return s;
+	}
+
+	std::istream& readBinaryData(std::istream& s, float occupancy_thres_log,
+															 float free_thres_log) const
+	{
+		return s;
+	}
 };
 
 /**
@@ -91,6 +103,28 @@ struct OccupancyNodeRGB : OccupancyNode
 		}
 		return s;
 	}
+
+	std::ostream& writeBinaryData(std::ostream& s, float occupancy_thres_log,
+																float free_thres_log) const
+	{
+		OccupancyNode::writeBinaryData(s, occupancy_thres_log, free_thres_log);
+		if (logit > occupancy_thres_log)
+		{
+			s.write((const char*)&color, sizeof(color));
+		}
+		return s;
+	}
+
+	std::istream& readBinaryData(std::istream& s, float occupancy_thres_log,
+															 float free_thres_log) const
+	{
+		OccupancyNode::readBinaryData(s, occupancy_thres_log, free_thres_log);
+		if (logit > occupancy_thres_log)
+		{
+			s.read((char*)&color, sizeof(color));
+		}
+		return s;
+	}
 };
 
 /**
@@ -130,6 +164,28 @@ struct OccupancyNodeIntensity : OccupancyNode
 	std::istream& readData(std::istream& s, float occupancy_thres_log, float free_thres_log)
 	{
 		OccupancyNode::readData(s, occupancy_thres_log, free_thres_log);
+		if (logit > occupancy_thres_log)
+		{
+			s.read((char*)&intensity, sizeof(intensity));
+		}
+		return s;
+	}
+
+	std::ostream& writeBinaryData(std::ostream& s, float occupancy_thres_log,
+																float free_thres_log) const
+	{
+		OccupancyNode::writeBinaryData(s, occupancy_thres_log, free_thres_log);
+		if (logit > occupancy_thres_log)
+		{
+			s.write((const char*)&intensity, sizeof(intensity));
+		}
+		return s;
+	}
+
+	std::istream& readBinaryData(std::istream& s, float occupancy_thres_log,
+															 float free_thres_log) const
+	{
+		OccupancyNode::readBinaryData(s, occupancy_thres_log, free_thres_log);
 		if (logit > occupancy_thres_log)
 		{
 			s.read((char*)&intensity, sizeof(intensity));
