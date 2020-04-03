@@ -4,7 +4,9 @@
 
 namespace ufomap_geometry
 {
-// Help functions
+/////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////// Help functions /////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 bool intersectsLine(const AABB& aabb, const Ray& ray, float t_near, float t_far)
 {
 	Vector3 min = aabb.getMin();
@@ -208,8 +210,11 @@ bool overlapOnAxis(const OBB& obb_1, const OBB& obb_2, const Vector3& axis)
 	return ((b_min <= a_max) && (a_min <= b_max));
 }
 
-// Intersects functions
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Intersects functions //////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 
+// AABB
 bool intersects(const AABB& aabb_1, const AABB& aabb_2)
 {
 	Vector3 min_1 = aabb_1.getMin();
@@ -234,11 +239,6 @@ bool intersects(const AABB& aabb, const Frustum& frustum)
 	return true;
 }
 
-bool intersects(const Frustum& frustum, const AABB& aabb)
-{
-	return intersects(aabb, frustum);
-}
-
 bool intersects(const AABB& aabb, const LineSegment& line_segment)
 {
 	Ray ray;
@@ -247,11 +247,6 @@ bool intersects(const AABB& aabb, const LineSegment& line_segment)
 	float length = ray.direction.norm();
 	ray.direction /= length;
 	return intersectsLine(aabb, ray, 0.0, length);
-}
-
-bool intersects(const LineSegment& line_segment, const AABB& aabb)
-{
-	return intersects(aabb, line_segment);
 }
 
 bool intersects(const AABB& aabb, const OBB& obb)
@@ -281,11 +276,6 @@ bool intersects(const AABB& aabb, const OBB& obb)
 	return true;  // Seperating axis not found
 }
 
-bool intersects(const OBB& obb, const AABB& aabb)
-{
-	return intersects(aabb, obb);
-}
-
 bool intersects(const AABB& aabb, const Plane& plane)
 {
 	float p_len = aabb.half_size.x() * std::abs(plane.normal.x()) +
@@ -293,11 +283,6 @@ bool intersects(const AABB& aabb, const Plane& plane)
 								aabb.half_size.z() * std::abs(plane.normal.z());
 	float distance = Vector3::dot(plane.normal, aabb.center) - plane.distance;
 	return std::abs(distance) <= p_len;
-}
-
-bool intersects(const Plane& plane, const AABB& aabb)
-{
-	return intersects(aabb, plane);
 }
 
 bool intersects(const AABB& aabb, const Vector3& point)
@@ -312,21 +297,11 @@ bool intersects(const AABB& aabb, const Vector3& point)
 	return true;
 }
 
-bool intersects(const Vector3& point, const AABB& aabb)
-{
-	return intersects(aabb, point);
-}
-
 bool intersects(const AABB& aabb, const Ray& ray)
 {
 	return intersectsLine(aabb, ray, 0.0,
 												std::numeric_limits<float>::infinity());  // TODO: infinity or
 																																	// max?
-}
-
-bool intersects(const Ray& ray, const AABB& aabb)
-{
-	return intersects(aabb, ray);
 }
 
 bool intersects(const AABB& aabb, const Sphere& sphere)
@@ -337,12 +312,23 @@ bool intersects(const AABB& aabb, const Sphere& sphere)
 	return distance_squared < radius_squared;
 }
 
-bool intersects(const Sphere& sphere, const AABB& aabb)
+// Frustum
+bool intersects(const Frustum& frustum, const AABB& aabb)
 {
-	return intersects(aabb, sphere);
+	return intersects(aabb, frustum);
 }
 
-bool intersects(const OBB& obb, const Frustum& frustum)
+bool intersects(const Frustum& frustum_1, const Frustum& frustum_2)
+{
+	// TODO: Implement
+}
+
+bool intersects(const Frustum& frustum, const LineSegment& line_segment)
+{
+	// TODO: Implement
+}
+
+bool intersects(const Frustum& frustum, const OBB& obb)
 {
 	for (int i = 0; i < 6; ++i)
 	{
@@ -355,22 +341,41 @@ bool intersects(const OBB& obb, const Frustum& frustum)
 	return true;
 }
 
-bool intersects(const Frustum& frustum, const OBB& obb)
+bool intersects(const Frustum& frustum, const Plane& plane)
 {
-	return intersects(obb, frustum);
+	// TODO: Implement
 }
 
-bool intersects(const OBB& obb, const Vector3& point)
+bool intersects(const Frustum& frustum, const Vector3& point)
 {
-	Vector3 dir = point - obb.center;
-	for (int i = 0; i < 3; ++i)
+	// Do similar as for sphere
+	for (int i = 0; i < 6; ++i)
 	{
-		float distance = Vector3::dot(dir, obb.rotation);
-		if (distance > obb.half_size[i])
+		const Vector3& normal = frustum.planes[i].normal;
+		const float& distance = frustum.planes[i].distance;
+		const float side = Vector3::dot(point, normal) + distance;
+		if (side < 0.0)  // TODO: What should this be?
 		{
 			return false;
 		}
-		if (distance < -obb.half_size[i])  // TODO: Should this be else if?
+	}
+	return true;
+	// TODO: Implement
+}
+
+bool intersects(const Frustum& frustum, const Ray& ray)
+{
+	// TODO: Implement
+}
+
+bool intersects(const Frustum& frustum, const Sphere& sphere)
+{
+	for (int i = 0; i < 6; ++i)
+	{
+		const Vector3& normal = frustum.planes[i].normal;
+		const float& distance = frustum.planes[i].distance;
+		const float side = Vector3::dot(sphere.center, normal) + distance;
+		if (side < -sphere.radius)
 		{
 			return false;
 		}
@@ -378,7 +383,24 @@ bool intersects(const OBB& obb, const Vector3& point)
 	return true;
 }
 
-bool intersects(const OBB& obb, const LineSegment& line_segment)
+// Line segment
+bool intersects(const LineSegment& line_segment, const AABB& aabb)
+{
+	return intersects(aabb, line_segment);
+}
+
+bool intersects(const LineSegment& line_segment, const Frustum& frustum)
+{
+	return intersects(frustum, line_segment);
+}
+
+bool intersects(const LineSegment& line_segment_1, const LineSegment& line_segment_2)
+{
+	return false;
+	// TODO: Implement
+}
+
+bool intersects(const LineSegment& line_segment, const OBB& obb)
 {
 	Ray ray;
 	ray.origin = line_segment.start;
@@ -448,9 +470,53 @@ bool intersects(const OBB& obb, const LineSegment& line_segment)
 	return t_result >= 0 && t_result * t_result <= line_length_squared;
 }
 
-bool intersects(const LineSegment& line_segment, const OBB& obb)
+bool intersects(const LineSegment& line_segment, const Plane& plane)
 {
-	return intersects(obb, line_segment);
+	Vector3 ab = line_segment.end - line_segment.start;
+	float n_A = Vector3::dot(plane.normal, line_segment.start);
+	float n_AB = Vector3::dot(plane.normal, ab);
+	if (0.0 == n_AB)  // TODO: Almost equal?
+	{
+		return false;
+	}
+	float t = (plane.distance - n_A) / n_AB;
+	return t >= 0.0 && t <= 1.0;
+}
+
+bool intersects(const LineSegment& line_segment, const Vector3& point)
+{
+	Vector3 closest_point = closestPoint(line_segment, point);
+	float distance_squared = (closest_point - point).squaredNorm();
+	return 0.0 == distance_squared;  // TODO: Almost equal?
+}
+
+bool intersects(const LineSegment& line_segment, const Ray& ray)
+{
+	return false;
+	// TODO: Implement
+}
+
+bool intersects(const LineSegment& line_segment, const Sphere& sphere)
+{
+	Vector3 closest_point = closestPoint(line_segment, sphere.center);
+	float distance_squared = (sphere.center - closest_point).squaredNorm();
+	return distance_squared <= (sphere.radius * sphere.radius);
+}
+
+// OBB
+bool intersects(const OBB& obb, const AABB& aabb)
+{
+	return intersects(aabb, obb);
+}
+
+bool intersects(const OBB& obb, const Frustum& frustum)
+{
+	return intersects(frustum, obb);
+}
+
+bool intersects(const OBB& obb, const LineSegment& line_segment)
+{
+	return intersects(line_segment, obb);
 }
 
 bool intersects(const OBB& obb_1, const OBB& obb_2)
@@ -498,9 +564,22 @@ bool intersects(const OBB& obb, const Plane& plane)
 	return std::fabs(distance) <= p_len;
 }
 
-bool intersects(const Plane& plane, const OBB& obb)
+bool intersects(const OBB& obb, const Vector3& point)
 {
-	return intersects(obb, plane);
+	Vector3 dir = point - obb.center;
+	for (int i = 0; i < 3; ++i)
+	{
+		float distance = Vector3::dot(dir, obb.rotation);
+		if (distance > obb.half_size[i])
+		{
+			return false;
+		}
+		if (distance < -obb.half_size[i])  // TODO: Should this be else if?
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 bool intersects(const OBB& obb, const Ray& ray)
@@ -551,11 +630,6 @@ bool intersects(const OBB& obb, const Ray& ray)
 	return true;
 }
 
-bool intersects(const Ray& ray, const OBB& obb)
-{
-	return intersects(obb, ray);
-}
-
 bool intersects(const OBB& obb, const Sphere& sphere)
 {
 	Vector3 closest_point = closestPoint(obb, sphere.center);
@@ -563,123 +637,36 @@ bool intersects(const OBB& obb, const Sphere& sphere)
 	return distance_squared < sphere.radius * sphere.radius;
 }
 
-bool intersects(const Sphere& sphere, const OBB& obb)
+// Plane
+bool intersects(const Plane& plane, const AABB& aabb)
 {
-	return intersects(obb, sphere);
+	return intersects(aabb, plane);
 }
 
-bool intersects(const Vector3& point, const OBB& obb)
+bool intersects(const Plane& plane, const Frustum& frustum)
 {
-	return intersects(obb, point);
-}
-
-bool intersects(const Sphere& sphere, const Frustum& frustum)
-{
-	for (int i = 0; i < 6; ++i)
-	{
-		Vector3 normal = frustum.planes[i].normal;
-		float distance = frustum.planes[i].distance;
-		float side = Vector3::dot(sphere.center, normal) + distance;
-		if (side < -sphere.radius)
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-bool intersects(const Frustum& frustum, const Sphere& sphere)
-{
-	return intersects(sphere, frustum);
-}
-
-bool intersects(const Sphere& sphere, const LineSegment& line_segment)
-{
-	Vector3 closest_point = closestPoint(line_segment, sphere.center);
-	float distance_squared = (sphere.center - closest_point).squaredNorm();
-	return distance_squared <= (sphere.radius * sphere.radius);
-}
-
-bool intersects(const LineSegment& line_segment, const Sphere& sphere)
-{
-	return intersects(sphere, line_segment);
-}
-
-bool intersects(const Sphere& sphere, const Plane& plane)
-{
-	Vector3 closest_point = closestPoint(plane, sphere.center);
-	float distance_squared = (sphere.center - closest_point).squaredNorm();
-	return distance_squared < sphere.radius * sphere.radius;
-}
-
-bool intersects(const Plane& plane, const Sphere& sphere)
-{
-	return intersects(sphere, plane);
-}
-
-bool intersects(const Sphere& sphere, const Ray& ray)
-{
-	Vector3 e = sphere.center - ray.origin;
-	float rSq = sphere.radius * sphere.radius;
-	float eSq = e.squaredNorm();
-	float a = Vector3::dot(e, ray.direction);
-	return rSq - (eSq - a * a) >= 0.0;
-}
-
-bool intersects(const Ray& ray, const Sphere& sphere)
-{
-	return intersects(sphere, ray);
-}
-
-bool intersects(const Sphere& sphere_1, const Sphere& sphere_2)
-{
-	float radius_sum = sphere_1.radius + sphere_2.radius;
-	float distance_squared = (sphere_1.center - sphere_2.center).squaredNorm();
-	return distance_squared < radius_sum * radius_sum;
-}
-
-bool intersects(const Sphere& sphere, const Vector3& point)
-{
-	return (point - sphere.center).squaredNorm() < sphere.radius * sphere.radius;
-}
-
-bool intersects(const Vector3& point, const Sphere& sphere)
-{
-	return intersects(sphere, point);
-}
-
-bool intersects(const Plane& plane, const Vector3& point)
-{
-	return Vector3::dot(point, plane.normal) - plane.distance;
-}
-
-bool intersects(const Vector3& point, const Plane& plane)
-{
-	return intersects(plane, point);
+	return intersects(frustum, plane);
 }
 
 bool intersects(const Plane& plane, const LineSegment& line_segment)
 {
-	Vector3 ab = line_segment.end - line_segment.start;
-	float n_A = Vector3::dot(plane.normal, line_segment.start);
-	float n_AB = Vector3::dot(plane.normal, ab);
-	if (0.0 == n_AB)  // TODO: Almost equal?
-	{
-		return false;
-	}
-	float t = (plane.distance - n_A) / n_AB;
-	return t >= 0.0 && t <= 1.0;
+	return intersects(line_segment, plane);
 }
 
-bool intersects(const LineSegment& line_segment, const Plane& plane)
+bool intersects(const Plane& plane, const OBB& obb)
 {
-	return intersects(plane, line_segment);
+	return intersects(obb, plane);
 }
 
 bool intersects(const Plane& plane_1, const Plane& plane_2)
 {
 	Vector3 d = Vector3::cross(plane_1.normal, plane_2.normal);
 	return 0.0 != Vector3::dot(d, d);  // TODO: Almost not equal?
+}
+
+bool intersects(const Plane& plane, const Vector3& point)
+{
+	return Vector3::dot(point, plane.normal) - plane.distance;
 }
 
 bool intersects(const Plane& plane, const Ray& ray)
@@ -694,16 +681,22 @@ bool intersects(const Plane& plane, const Ray& ray)
 	return t >= 0.0;
 }
 
-bool intersects(const Ray& ray, const Plane& plane)
+bool intersects(const Plane& plane, const Sphere& sphere)
 {
-	return intersects(plane, ray);
+	Vector3 closest_point = closestPoint(plane, sphere.center);
+	float distance_squared = (sphere.center - closest_point).squaredNorm();
+	return distance_squared < sphere.radius * sphere.radius;
 }
 
-bool intersects(const LineSegment& line_segment, const Vector3& point)
+// Point
+bool intersects(const Vector3& point, const AABB& aabb)
 {
-	Vector3 closest_point = closestPoint(line_segment, point);
-	float distance_squared = (closest_point - point).squaredNorm();
-	return 0.0 == distance_squared;  // TODO: Almost equal?
+	return intersects(aabb, point);
+}
+
+bool intersects(const Vector3& point, const Frustum& frustum)
+{
+	return intersects(frustum, point);
 }
 
 bool intersects(const Vector3& point, const LineSegment& line_segment)
@@ -711,7 +704,25 @@ bool intersects(const Vector3& point, const LineSegment& line_segment)
 	return intersects(line_segment, point);
 }
 
-bool intersects(const Ray& ray, const Vector3& point)
+bool intersects(const Vector3& point, const OBB& obb)
+{
+	return intersects(obb, point);
+}
+
+bool intersects(const Vector3& point, const Plane& plane)
+{
+	return intersects(plane, point);
+}
+
+bool intersects(const Vector3& point_1, const Vector3& point_2)
+{
+	if (point_1 == point_2)  // TODO: Almost equal?
+	{
+		return true;
+	}
+}
+
+bool intersects(const Vector3& point, const Ray& ray)
 {
 	if (ray.origin == point)
 	{
@@ -722,66 +733,154 @@ bool intersects(const Ray& ray, const Vector3& point)
 	return 1.0 == Vector3::dot(direction, ray.direction);  // TODO: Almost equal?
 }
 
-bool intersects(const Vector3& point, const Ray& ray)
+bool intersects(const Vector3& point, const Sphere& sphere)
 {
-	return intersects(ray, point);
+	return (point - sphere.center).squaredNorm() < sphere.radius * sphere.radius;
+}
+
+// Ray
+bool intersects(const Ray& ray, const AABB& aabb)
+{
+	return intersects(aabb, ray);
+}
+
+bool intersects(const Ray& ray, const Frustum& frustum)
+{
+	return intersects(frustum, ray);
+}
+
+bool intersects(const Ray& ray, const LineSegment& line_segment)
+{
+	return intersects(line_segment, ray);
+}
+
+bool intersects(const Ray& ray, const OBB& obb)
+{
+	return intersects(obb, ray);
+}
+
+bool intersects(const Ray& ray, const Plane& plane)
+{
+	return intersects(plane, ray);
+}
+
+bool intersects(const Ray& ray, const Vector3& point)
+{
+	return intersects(point, ray);
+}
+
+bool intersects(const Ray& ray_1, const Ray& ray_2)
+{
+	// TODO: Implement
+}
+
+bool intersects(const Ray& ray, const Sphere& sphere)
+{
+	Vector3 e = sphere.center - ray.origin;
+	float rSq = sphere.radius * sphere.radius;
+	float eSq = e.squaredNorm();
+	float a = Vector3::dot(e, ray.direction);
+	return rSq - (eSq - a * a) >= 0.0;
+}
+
+// Sphere
+bool intersects(const Sphere& sphere, const AABB& aabb)
+{
+	return intersects(aabb, sphere);
+}
+
+bool intersects(const Sphere& sphere, const Frustum& frustum)
+{
+	return intersects(frustum, sphere);
+}
+
+bool intersects(const Sphere& sphere, const LineSegment& line_segment)
+{
+	return intersects(line_segment, sphere);
+}
+
+bool intersects(const Sphere& sphere, const OBB& obb)
+{
+	return intersects(obb, sphere);
+}
+
+bool intersects(const Sphere& sphere, const Plane& plane)
+{
+	return intersects(plane, sphere);
+}
+
+bool intersects(const Sphere& sphere, const Vector3& point)
+{
+	return intersects(point, sphere);
+}
+
+bool intersects(const Sphere& sphere, const Ray& ray)
+{
+	return intersects(ray, sphere);
+}
+
+bool intersects(const Sphere& sphere_1, const Sphere& sphere_2)
+{
+	float radius_sum = sphere_1.radius + sphere_2.radius;
+	float distance_squared = (sphere_1.center - sphere_2.center).squaredNorm();
+	return distance_squared < radius_sum * radius_sum;
 }
 
 // Inside
 
-bool inside(const AABB& aabb_1, const AABB& aabb_2)
-{
-	ufomap_math::Vector3 min_1 = aabb_1.getMin();
-	ufomap_math::Vector3 max_1 = aabb_1.getMax();
-	ufomap_math::Vector3 min_2 = aabb_2.getMin();
-	ufomap_math::Vector3 max_2 = aabb_2.getMax();
+// bool inside(const AABB& aabb_1, const AABB& aabb_2)
+// {
+// 	ufomap_math::Vector3 min_1 = aabb_1.getMin();
+// 	ufomap_math::Vector3 max_1 = aabb_1.getMax();
+// 	ufomap_math::Vector3 min_2 = aabb_2.getMin();
+// 	ufomap_math::Vector3 max_2 = aabb_2.getMax();
 
-	return min_1.x() >= min_2.x() && min_1.y() >= min_2.y() && min_1.z() >= min_2.z() &&
-				 max_1.x() <= max_2.x() && max_1.y() <= max_2.y() && max_1.z() <= max_2.z();
-}
+// 	return min_1.x() >= min_2.x() && min_1.y() >= min_2.y() && min_1.z() >= min_2.z() &&
+// 				 max_1.x() <= max_2.x() && max_1.y() <= max_2.y() && max_1.z() <= max_2.z();
+// }
 
-bool inside(const AABB& aabb, const Frustum& frustum)
-{
-	// TODO: Implement
-	return false;
-}
+// bool inside(const AABB& aabb, const Frustum& frustum)
+// {
+// 	// TODO: Implement
+// 	return false;
+// }
 
-bool inside(const AABB& aabb, const LineSegment& line_segment)
-{
-	return false;
-}
+// bool inside(const AABB& aabb, const LineSegment& line_segment)
+// {
+// 	return false;
+// }
 
-bool inside(const AABB& aabb, const OBB& obb)
-{
-	// TODO: Implement
-	return false;
-}
+// bool inside(const AABB& aabb, const OBB& obb)
+// {
+// 	// TODO: Implement
+// 	return false;
+// }
 
-bool inside(const AABB& aabb, const Plane& plane)
-{
-	return false;
-}
+// bool inside(const AABB& aabb, const Plane& plane)
+// {
+// 	return false;
+// }
 
-bool inside(const AABB& aabb, const Ray& ray)
-{
-	return false;
-}
+// bool inside(const AABB& aabb, const Ray& ray)
+// {
+// 	return false;
+// }
 
-bool inside(const AABB& aabb, const Sphere& sphere)
-{
-	const float radius_squared = sphere.radius * sphere.radius;
+// bool inside(const AABB& aabb, const Sphere& sphere)
+// {
+// 	const float radius_squared = sphere.radius * sphere.radius;
 
-	ufomap_math::Vector3 min = aabb.getMin();
-	ufomap_math::Vector3 max = aabb.getMax();
+// 	ufomap_math::Vector3 min = aabb.getMin();
+// 	ufomap_math::Vector3 max = aabb.getMax();
 
-	if ((sphere.center - min).squaredNorm() > radius_squared ||
-			(sphere.center - max).squaredNorm() > radius_squared)
-	{
-		return false;
-	}
+// 	if ((sphere.center - min).squaredNorm() > radius_squared ||
+// 			(sphere.center - max).squaredNorm() > radius_squared)
+// 	{
+// 		return false;
+// 	}
 
-	// TODO: Get other size vertices
-	return false;
-}
+// 	// TODO: Get other size vertices
+// 	return false;
+// }
 
 }  // namespace ufomap_geometry

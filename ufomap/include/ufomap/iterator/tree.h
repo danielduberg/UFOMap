@@ -1,34 +1,14 @@
 #ifndef UFOMAP_ITERATOR_TREE_H
 #define UFOMAP_ITERATOR_TREE_H
 
-#include <ufomap/geometry/intersects.h>
-#include <ufomap/geometry/types.h>
+#include <ufomap/geometry/bounding_volume.h>
+#include <ufomap/geometry/collision_checks.h>
 #include <ufomap/iterator/base.h>
 
 #include <type_traits>
 namespace ufomap
 {
-template <typename, typename = void>
-struct hasBegin : std::false_type
-{
-};
-
-template <typename T>
-struct hasBegin<T, std::void_t<decltype(((T*)nullptr)->begin())>> : std::true_type
-{
-};
-
-template <typename, typename = void>
-struct hasEnd : std::false_type
-{
-};
-
-template <typename T>
-struct hasEnd<T, std::void_t<decltype(((T*)nullptr)->end())>> : std::true_type
-{
-};
-
-template <typename TREE, typename INNER_NODE, typename LEAF_NODE, typename BOUNDING_TYPE>
+template <typename TREE, typename INNER_NODE, typename LEAF_NODE>
 class TreeIterator : public BaseIterator<TREE, INNER_NODE, LEAF_NODE>
 {
 public:
@@ -36,7 +16,7 @@ public:
 	{
 	}
 
-	TreeIterator(const TREE* tree, const BOUNDING_TYPE& bounding_volume,
+	TreeIterator(const TREE* tree, const ufomap_geometry::BoundingVolume& bounding_volume,
 							 bool occupied_space = true, bool free_space = true,
 							 bool unknown_space = true, bool contains = false,
 							 unsigned int min_depth = 0)
@@ -98,47 +78,20 @@ protected:
 			return false;
 		}
 
+		if (bounding_volume_.empty())
+		{
+			return true;
+		}
+
 		Point3 center = this->tree_->keyToCoord(node.code.toKey());
 		float half_size = this->tree_->getNodeHalfSize(node.getDepth());
 		ufomap_geometry::AABB aabb(center - half_size, center + half_size);
 
-		if constexpr (hasBegin<BOUNDING_TYPE>::value && hasEnd<BOUNDING_TYPE>::value)
-		{
-			for (auto& v : bounding_volume_)
-			{
-				if constexpr (std::is_same_v<BoundingVar, v>)
-				{
-					if (std::visit([aabb](auto&& arg)
-														 -> bool { return ufomap_geometry::intersects(aabb, arg); },
-												 v))
-					{
-						return true;
-					}
-				}
-				else
-				{
-					if (ufomap_geometry::intersects(aabb, v))
-					{
-						return true;
-					}
-				}
-			}
-			return false;
-		}
-		else if constexpr (std::is_same_v<BoundingVar, bounding_volume_>)
-		{
-			return std::visit(
-					[aabb](auto&& arg) -> bool { return ufomap_geometry::intersects(aabb, arg); },
-					bounding_volume_);
-		}
-		else
-		{
-			return ufomap_geometry::intersects(aabb, bounding_volume_);
-		}
+		return bounding_volume_.intersects(aabb);
 	}
 
 protected:
-	BOUNDING_TYPE bounding_volume_;
+	ufomap_geometry::BoundingVolume bounding_volume_;
 };
 
 }  // namespace ufomap

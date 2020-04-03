@@ -5,21 +5,21 @@
 
 namespace ufomap
 {
-template <typename TREE, typename INNER_NODE, typename LEAF_NODE, typename BOUNDING_TYPE>
-class LeafIterator : public TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>
+template <typename TREE, typename INNER_NODE, typename LEAF_NODE>
+class LeafIterator : public TreeIterator<TREE, INNER_NODE, LEAF_NODE>
 {
 public:
-	LeafIterator() : TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>()
+	LeafIterator() : TreeIterator<TREE, INNER_NODE, LEAF_NODE>()
 	{
 	}
 
-	LeafIterator(const TREE* tree, const BOUNDING_TYPE& bounding_volume,
+	LeafIterator(const TREE* tree, const ufomap_geometry::BoundingVolume& bounding_volume,
 							 bool occupied_space = true, bool free_space = true,
 							 bool unknown_space = true, bool contains = false,
 							 unsigned int min_depth = 0)
-		: TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>(
-					tree, bounding_volume, occupied_space, free_space, unknown_space, contains,
-					min_depth)
+		: TreeIterator<TREE, INNER_NODE, LEAF_NODE>(tree, bounding_volume, occupied_space,
+																								free_space, unknown_space, contains,
+																								min_depth)
 	{
 		if (!this->stack_.empty())
 		{
@@ -31,13 +31,13 @@ public:
 	}
 
 	LeafIterator(const LeafIterator& other)
-		: TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>(other)
+		: TreeIterator<TREE, INNER_NODE, LEAF_NODE>(other)
 	{
 	}
 
 	LeafIterator& operator=(const LeafIterator& rhs)
 	{
-		TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>::operator=(rhs);
+		TreeIterator<TREE, INNER_NODE, LEAF_NODE>::operator=(rhs);
 		return *this;
 	}
 
@@ -60,8 +60,7 @@ protected:
 	virtual bool validReturnNode(const Node<LEAF_NODE>& node) const override
 	{
 		return (this->tree_->isLeaf(node) || node.getDepth() == this->min_depth_) &&
-					 TreeIterator<TREE, INNER_NODE, LEAF_NODE, BOUNDING_TYPE>::validReturnNode(
-							 node);
+					 TreeIterator<TREE, INNER_NODE, LEAF_NODE>::validReturnNode(node);
 	}
 };
 
