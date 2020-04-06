@@ -1671,6 +1671,7 @@ public:
 		s << (binary ? BINARY_FILE_HEADER : FILE_HEADER);
 		s << "\n# (feel free to add / change comments, but leave the first line as it "
 				 "is!)\n#\n";
+		s << "version " << FILE_VERSION << std::endl;
 		s << "id " << getTreeType() << std::endl;
 		s << "size " << size() << std::endl;
 		s << "res " << getResolution() << std::endl;
@@ -3079,6 +3080,9 @@ protected:
 	// File headers
 	inline static const std::string FILE_HEADER = "# UFOMap octree file";
 	inline static const std::string BINARY_FILE_HEADER = "# UFOMap octree binary file";
+	
+	// File version
+	inline static const std::string FILE_VERSION = "1.0.0";
 };
 }  // namespace ufomap
 
