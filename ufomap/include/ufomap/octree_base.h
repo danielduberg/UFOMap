@@ -1498,6 +1498,7 @@ public:
 			return false;
 		}
 
+		std::string file_version;
 		std::string id;
 		size_t size;
 		float res;
@@ -1507,7 +1508,7 @@ public:
 		bool compressed;
 		int data_size;
 		ufomap_geometry::BoundingVolume bounding_volume;
-		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
+		if (!readHeader(s, file_version, id, size, res, depth_levels, occupancy_thres, free_thres,
 										compressed, data_size, bounding_volume))
 		{
 			return false;
@@ -2538,10 +2539,11 @@ protected:
 		return false;
 	}
 
-	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
+	bool readHeader(std::istream& s, std::string& file_version, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
 									bool& compressed, int& data_size)
 	{
+		file_version = "";
 		id = "";
 		size = 0;
 		res = 0.0;
@@ -2574,6 +2576,10 @@ protected:
 				{
 					c = s.get();
 				} while (s.good() && (c != '\n'));
+			}
+			else if ("version" == token)
+			{
+				s >> file_version;
 			}
 			else if ("id" == token)
 			{
