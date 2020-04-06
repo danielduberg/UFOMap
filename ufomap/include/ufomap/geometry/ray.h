@@ -16,6 +16,10 @@ struct Ray
 	{
 	}
 
+	inline Ray(const Ray& ray) : origin(ray.origin), direction(ray.direction)
+	{
+	}
+
 	inline Ray(const Vector3& origin, const Vector3& direction)
 		: origin(origin), direction(direction.normalized())
 	{

@@ -1,4 +1,0 @@
-# Clear a region specified by a global axis-aligned bounding box in stored UFOMap
-
-ufomap_msgs/Bounding bounding
----

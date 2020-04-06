@@ -28,12 +28,9 @@ class OctreeBase
 {
 public:
 	using Ray = std::vector<Point3>;
-	template <typename BOUNDING_TYPE>
-	using tree_iterator =
-			TreeIterator<OctreeBase, InnerNode<LEAF_NODE>, LEAF_NODE, BOUNDING_TYPE>;
-	template <typename BOUNDING_TYPE>
-	using leaf_iterator =
-			LeafIterator<OctreeBase, InnerNode<LEAF_NODE>, LEAF_NODE, BOUNDING_TYPE>;
+
+	using tree_iterator = TreeIterator<OctreeBase, InnerNode<LEAF_NODE>, LEAF_NODE>;
+	using leaf_iterator = LeafIterator<OctreeBase, InnerNode<LEAF_NODE>, LEAF_NODE>;
 
 public:
 	virtual ~OctreeBase()
@@ -747,59 +744,72 @@ public:
 	// Iterators
 	//
 
-	// TODO: Update to use AABB version?
-	tree_iterator<ufomap_geometry::AABB> begin_tree(bool occupied_space = true,
-																									bool free_space = true,
-																									bool unknown_space = false,
-																									bool contains = false,
-																									unsigned int min_depth = 0) const
+	tree_iterator begin_tree(bool occupied_space = true, bool free_space = true,
+													 bool unknown_space = false, bool contains = false,
+													 unsigned int min_depth = 0) const
 	{
-		return tree_iterator<ufomap_geometry::AABB>(
-				this, ufomap_geometry::AABB(getMin(), getMax()), occupied_space, free_space,
-				unknown_space, contains, min_depth);
+		return tree_iterator(this, ufomap_geometry::BoundingVolume(), occupied_space,
+												 free_space, unknown_space, contains, min_depth);
 	}
 
-	const tree_iterator<ufomap_geometry::AABB> end_tree() const
+	const tree_iterator end_tree() const
 	{
-		return tree_iterator<ufomap_geometry::AABB>();
+		return tree_iterator();
 	}
 
 	template <typename BOUNDING_TYPE>
-	tree_iterator<BOUNDING_TYPE>
-	begin_tree_bounding(const BOUNDING_TYPE& bounding_type, bool occupied_space = true,
-											bool free_space = true, bool unknown_space = false,
-											bool contains = false, unsigned int min_depth = 0) const
+	tree_iterator begin_tree_bounding(const BOUNDING_TYPE& bounding_volume,
+																		bool occupied_space = true, bool free_space = true,
+																		bool unknown_space = false, bool contains = false,
+																		unsigned int min_depth = 0) const
 	{
-		return tree_iterator<BOUNDING_TYPE>(this, bounding_type, occupied_space, free_space,
-																				unknown_space, contains, min_depth);
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return tree_iterator(this, bv, occupied_space, free_space, unknown_space, contains,
+												 min_depth);
 	}
 
-	// TODO: Update to use AABB version?
-	leaf_iterator<ufomap_geometry::AABB> begin_leafs(bool occupied_space = true,
-																									 bool free_space = true,
-																									 bool unknown_space = false,
-																									 bool contains = false,
-																									 unsigned int min_depth = 0) const
+	tree_iterator begin_tree_bounding(
+			const ufomap_geometry::BoundingVolume& bounding_volume, bool occupied_space = true,
+			bool free_space = true, bool unknown_space = false, bool contains = false,
+			unsigned int min_depth = 0) const
 	{
-		return leaf_iterator<ufomap_geometry::AABB>(
-				this, ufomap_geometry::AABB(getMin(), getMax()), occupied_space, free_space,
-				unknown_space, contains, min_depth);
+		return tree_iterator(this, bounding_volume, occupied_space, free_space, unknown_space,
+												 contains, min_depth);
 	}
 
-	template <typename BOUNDING_TYPE = ufomap_geometry::AABB>
-	const leaf_iterator<BOUNDING_TYPE> end_leafs() const
+	leaf_iterator begin_leafs(bool occupied_space = true, bool free_space = true,
+														bool unknown_space = false, bool contains = false,
+														unsigned int min_depth = 0) const
 	{
-		return leaf_iterator<BOUNDING_TYPE>();
+		return leaf_iterator(this, ufomap_geometry::BoundingVolume(), occupied_space,
+												 free_space, unknown_space, contains, min_depth);
+	}
+
+	const leaf_iterator end_leafs() const
+	{
+		return leaf_iterator();
 	}
 
 	template <typename BOUNDING_TYPE>
-	leaf_iterator<BOUNDING_TYPE>
-	begin_leafs_bounding(const BOUNDING_TYPE& bounding_type, bool occupied_space = true,
-											 bool free_space = true, bool unknown_space = false,
-											 bool contains = false, unsigned int min_depth = 0) const
+	leaf_iterator begin_leafs_bounding(const BOUNDING_TYPE& bounding_volume,
+																		 bool occupied_space = true, bool free_space = true,
+																		 bool unknown_space = false, bool contains = false,
+																		 unsigned int min_depth = 0) const
 	{
-		return leaf_iterator<BOUNDING_TYPE>(this, bounding_type, occupied_space, free_space,
-																				unknown_space, contains, min_depth);
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return leaf_iterator(this, bv, occupied_space, free_space, unknown_space, contains,
+												 min_depth);
+	}
+
+	leaf_iterator begin_leafs_bounding(
+			const ufomap_geometry::BoundingVolume& bounding_volume, bool occupied_space = true,
+			bool free_space = true, bool unknown_space = false, bool contains = false,
+			unsigned int min_depth = 0) const
+	{
+		return leaf_iterator(this, bounding_volume, occupied_space, free_space, unknown_space,
+												 contains, min_depth);
 	}
 
 	//
@@ -1456,7 +1466,7 @@ public:
 	}
 
 	//
-	// Read/write/update
+	// Read/write
 	//
 
 	bool read(const std::string& filename)
@@ -1496,8 +1506,9 @@ public:
 		float free_thres;
 		bool compressed;
 		int data_size;
+		ufomap_geometry::BoundingVolume bounding_volume;
 		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
-										compressed, data_size))
+										compressed, data_size, bounding_volume))
 		{
 			return false;
 		}
@@ -1508,14 +1519,15 @@ public:
 																			 std::ios_base::binary);
 			if (decompressData(s, uncompressed_s, data_size))
 			{
-				return readData(uncompressed_s, res, depth_levels, occupancy_thres, free_thres,
-												binary);
+				return readData(uncompressed_s, bounding_volume, res, depth_levels,
+												occupancy_thres, free_thres, data_size, compressed, binary);
 			}
 			return false;
 		}
 		else
 		{
-			return readData(s, res, depth_levels, occupancy_thres, free_thres, binary);
+			return readData(s, bounding_volume, res, depth_levels, occupancy_thres, free_thres,
+											data_size, compressed, binary);
 		}
 	}
 
@@ -1523,6 +1535,26 @@ public:
 	bool readData(std::istream& s, float resolution, unsigned int depth_levels,
 								float occupancy_thres, float free_thres, int data_size = -1,
 								bool compressed = false, bool binary = false)
+	{
+		return readData(s, ufomap_geometry::BoundingVolume(), resolution, depth_levels,
+										occupancy_thres, free_thres, data_size, compressed, binary);
+	}
+
+	template <typename BOUNDING_TYPE>
+	bool readData(std::istream& s, const BOUNDING_TYPE& bounding_volume, float resolution,
+								unsigned int depth_levels, float occupancy_thres, float free_thres,
+								int data_size = -1, bool compressed = false, bool binary = false)
+	{
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return readData(s, bv, resolution, depth_levels, occupancy_thres, free_thres,
+										data_size, compressed, binary);
+	}
+
+	bool readData(std::istream& s, const ufomap_geometry::BoundingVolume& bounding_volume,
+								float resolution, unsigned int depth_levels, float occupancy_thres,
+								float free_thres, int data_size = -1, bool compressed = false,
+								bool binary = false)
 	{
 		if (binary && !binarySupport())
 		{
@@ -1534,8 +1566,11 @@ public:
 			// Warning
 		}
 
-		clear(resolution, depth_levels);
-		root_ = InnerNode<LEAF_NODE>();
+		if (getResolution() != resolution || getTreeDepthLevels() != depth_levels)
+		{
+			clear(resolution, depth_levels);
+			root_ = InnerNode<LEAF_NODE>();
+		}
 
 		if (compressed)
 		{
@@ -1543,8 +1578,8 @@ public:
 																			 std::ios_base::binary);
 			if (decompressData(s, uncompressed_s, data_size))
 			{
-				return readData(uncompressed_s, resolution, depth_levels, occupancy_thres,
-												free_thres, data_size, false, binary);
+				return readData(uncompressed_s, bounding_volume, resolution, depth_levels,
+												occupancy_thres, free_thres, data_size, false, binary);
 			}
 			return false;
 		}
@@ -1552,19 +1587,35 @@ public:
 		{
 			if (binary)
 			{
-				return readBinaryNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
-																		 logit(free_thres));
+				return readBinaryNodesRecurs(s, bounding_volume, root_, depth_levels_,
+																		 logit(occupancy_thres), logit(free_thres));
 			}
 			else
 			{
-				return readNodesRecurs(s, root_, depth_levels_, logit(occupancy_thres),
-															 logit(free_thres));
+				return readNodesRecurs(s, bounding_volume, root_, depth_levels_,
+															 logit(occupancy_thres), logit(free_thres));
 			}
 		}
 	}
 
 	bool write(const std::string& filename, bool compress = false, bool binary = false,
 						 unsigned int depth = 0) const
+	{
+		return write(filename, ufomap_geometry::BoundingVolume(), compress, binary, depth);
+	}
+
+	template <typename BOUNDING_TYPE>
+	bool write(const std::string& filename, const BOUNDING_TYPE& bounding_volume,
+						 bool compress = false, bool binary = false, unsigned int depth = 0) const
+	{
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return write(filename, bv, compress, binary, depth);
+	}
+
+	bool write(const std::string& filename,
+						 const ufomap_geometry::BoundingVolume& bounding_volume,
+						 bool compress = false, bool binary = false, unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
@@ -1578,13 +1629,28 @@ public:
 			return false;
 		}
 		// TODO: check is_good of finished stream, return
-		const bool success = write(file, compress, binary, depth);
+		const bool success = write(file, bounding_volume, compress, binary, depth);
 		file.close();
 		return success;
 	}
 
 	bool write(std::ostream& s, bool compress = false, bool binary = false,
 						 unsigned int depth = 0) const
+	{
+		return write(s, ufomap_geometry::BoundingVolume(), compress, binary, depth);
+	}
+
+	template <typename BOUNDING_TYPE>
+	bool write(std::ostream& s, const BOUNDING_TYPE& bounding_volume, bool compress = false,
+						 bool binary = false, unsigned int depth = 0) const
+	{
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return write(s, bv, compress, binary, depth);
+	}
+
+	bool write(std::ostream& s, const ufomap_geometry::BoundingVolume& bounding_volume,
+						 bool compress = false, bool binary = false, unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
@@ -1594,7 +1660,7 @@ public:
 		std::stringstream data(std::ios_base::in | std::ios_base::out |
 													 std::ios_base::binary);
 
-		auto [success, data_size] = writeData(data, compress, binary, depth);
+		auto [success, data_size] = writeData(data, bounding_volume, compress, binary, depth);
 
 		if (!success)
 		{
@@ -1613,6 +1679,9 @@ public:
 		s << "free_thres " << getFreeThres() << std::endl;
 		s << "compressed " << compress << std::endl;
 		s << "data_size " << data_size << std::endl;
+
+		// TODO: Something with bounding volume
+
 		s << "data" << std::endl;
 
 		// Write data
@@ -1626,58 +1695,23 @@ public:
 	std::pair<bool, int> writeData(std::ostream& s, bool compress = false,
 																 bool binary = false, unsigned int depth = 0) const
 	{
-		if (binary && !binarySupport())
-		{
-			return std::make_pair(false, 0);
-		}
-
-		const std::streampos initial_write_position = s.tellp();
-
-		if (compress)
-		{
-			std::stringstream data(std::ios_base::in | std::ios_base::out |
-														 std::ios_base::binary);
-			auto [success, data_size] = writeData(data, false, binary, depth);
-			if (!success || !compressData(data, s, data_size))
-			{
-				return std::make_pair(false, 0);
-			}
-		}
-		else
-		{
-			if (binary)
-			{
-				if (!writeBinaryNodesRecurs(s, root_, depth_levels_, depth))
-				{
-					return std::make_pair(false, 0);
-				}
-			}
-			else
-			{
-				if (!writeNodesRecurs(s, root_, depth_levels_, depth))
-				{
-					return std::make_pair(false, 0);
-				}
-			}
-		}
-
-		// Return size of data
-		return std::make_pair(true, s.tellp() - initial_write_position);
+		return writeData(s, ufomap_geometry::BoundingVolume(), compress, binary, depth);
 	}
 
-	std::pair<bool, int> writeData(std::ostream& s,
-																 const ufomap_geometry::BoundingVar& bounding_volume,
+	template <typename BOUNDING_TYPE>
+	std::pair<bool, int> writeData(std::ostream& s, const BOUNDING_TYPE& bounding_volume,
 																 bool compress = false, bool binary = false,
 																 unsigned int depth = 0) const
 	{
-		std::vector<ufomap_geometry::BoundingVar> temp;
-		temp.push_back(bounding_volume);
-		return writeData(s, temp, compress, binary, depth);
+		ufomap_geometry::BoundingVolume bv;
+		bv.add(bounding_volume);
+		return writeData(s, bv, compress, binary, depth);
 	}
 
-	std::pair<bool, int> writeData(
-			std::ostream& s, const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
-			bool compress = false, bool binary = false, unsigned int depth = 0)
+	std::pair<bool, int> writeData(std::ostream& s,
+																 const ufomap_geometry::BoundingVolume& bounding_volume,
+																 bool compress = false, bool binary = false,
+																 unsigned int depth = 0) const
 	{
 		if (binary && !binarySupport())
 		{
@@ -1690,8 +1724,7 @@ public:
 		{
 			std::stringstream data(std::ios_base::in | std::ios_base::out |
 														 std::ios_base::binary);
-			auto [success, data_size] =
-					writeData(data, , bounding_volume, false, binary, depth);
+			auto [success, data_size] = writeData(data, bounding_volume, false, binary, depth);
 			if (!success || !compressData(data, s, data_size))
 			{
 				return std::make_pair(false, 0);
@@ -1717,51 +1750,6 @@ public:
 
 		// Return size of data
 		return std::make_pair(true, s.tellp() - initial_write_position);
-	}
-
-	bool updateData(std::istream& s, int data_size = -1, bool compressed = false,
-									bool binary = false, unsigned int depth = 0)
-	{
-		return updateData(s, ufomap_geometry::AABB(getMin(), getMax()), data_size, compressed,
-											binary, depth);
-	}
-
-	bool updateData(std::istream& s, const ufomap_geometry::BoundingVar& bounding_volume,
-									int data_size = -1, bool compressed = false, bool binary = false,
-									unsigned int depth = 0)
-	{
-		std::vector<ufomap_geometry::BoundingVar> temp;
-		temp.push_back(bounding_volume);
-		return updateData(s, temp, data_size, compressed, binary, depth);
-	}
-
-	bool updateData(std::istream& s,
-									const std::vector<ufomap_geometry::BoundingVar>& bounding_volume,
-									int data_size = -1, bool compressed = false, bool binary = false,
-									unsigned int depth = 0)
-	{
-		if (compressed)
-		{
-			std::stringstream uncompressed_s(std::ios_base::in | std::ios_base::out |
-																			 std::ios_base::binary);
-			if (decompressData(s, uncompressed_s, data_size))
-			{
-				return updateData(uncompressed_s, bounding_volume, data_size, false, binary,
-													depth);
-			}
-			return false;
-		}
-		else
-		{
-			if (binary)
-			{
-				return updateBinaryNodesRecurs(s, root_, depth_levels_, bounding_volume, depth);
-			}
-			else
-			{
-				return updateNodesRecurs(s, root_, depth_levels_, bounding_volume, depth);
-			}
-		}
 	}
 
 protected:
@@ -2617,6 +2605,9 @@ protected:
 			else if ("data_size" == token)
 			{
 				s >> data_size;
+			}
+			else if ("bounding_volume" == token)
+			{
 			}
 			else
 			{

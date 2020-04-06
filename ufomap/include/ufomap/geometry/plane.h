@@ -16,6 +16,10 @@ struct Plane
 	{
 	}
 
+	inline Plane(const Plane& plane) : normal(plane.normal), distance(plane.distance)
+	{
+	}
+
 	inline Plane(const Vector3& normal, float distance) : normal(normal), distance(distance)
 	{
 	}

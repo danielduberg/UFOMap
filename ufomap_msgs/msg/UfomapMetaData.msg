@@ -21,3 +21,6 @@ bool compressed
 
 # Size of data uncompressed
 int32 data_size
+
+# Bounding volume
+ufomap_msgs/BoundingVolume bounding_volume

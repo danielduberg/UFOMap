@@ -1,0 +1,4 @@
+# Clear a region specified by a global bounding volume in stored UFOMap
+
+ufomap_msgs/BoundingVolume bounding_volume
+---

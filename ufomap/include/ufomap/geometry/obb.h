@@ -18,6 +18,11 @@ struct OBB
 	{
 	}
 
+	inline OBB(const OBB& obb)
+		: center(obb.center), half_size(obb.half_size), rotation(obb.rotation)
+	{
+	}
+
 	inline OBB(const Vector3& center, const Vector3& half_size)
 		: center(center), half_size(half_size)
 	{

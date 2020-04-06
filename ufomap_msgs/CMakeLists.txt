@@ -13,23 +13,27 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   AABB.msg
-  Bounding.msg
+  BoundingVolume.msg
+  Capsule.msg
+  Cone.msg
+  Cylinder.msg
+  Ellipsoid.msg
   Frustum.msg
   LineSegment.msg
   OBB.msg
   Plane.msg
   Ray.msg
   Sphere.msg
+  Triangle.msg
   Ufomap.msg
   UfomapMetaData.msg
-  UfomapUpdate.msg
   UfomapWithPose.msg
 )
 
 add_service_files(
   FILES
   GetUfomap.srv
-  BoundingBoxQuery.srv
+  BoundingVolumeQuery.srv
 )
 
 generate_messages(

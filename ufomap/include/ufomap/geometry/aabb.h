@@ -17,6 +17,10 @@ struct AABB
 	{
 	}
 
+	inline AABB(const AABB& aabb) : center(aabb.center), half_size(aabb.half_size)
+	{
+		}
+
 	// inline AABB(const Vector3& center, const Vector3& half_size)
 	// 	: center(center), half_size(half_size)
 	// {
@@ -27,12 +31,12 @@ struct AABB
 		center = min + half_size;
 	}
 
-	Vector3 getMin() const
+	inline Vector3 getMin() const
 	{
 		return center - half_size;
 	}
 
-	Vector3 getMax() const
+	inline Vector3 getMax() const
 	{
 		return center + half_size;
 	}

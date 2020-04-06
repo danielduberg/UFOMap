@@ -1,5 +1,6 @@
 #include <ufomap/geometry/collision_checks.h>
 
+#include <exception>
 #include <limits>
 
 namespace ufomap_geometry
@@ -211,7 +212,7 @@ bool overlapOnAxis(const OBB& obb_1, const OBB& obb_2, const Vector3& axis)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Intersects functions //////////////////////////////////
+////////////////////////////////// Intersection tests ///////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 
 // AABB
@@ -320,11 +321,13 @@ bool intersects(const Frustum& frustum, const AABB& aabb)
 
 bool intersects(const Frustum& frustum_1, const Frustum& frustum_2)
 {
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
 bool intersects(const Frustum& frustum, const LineSegment& line_segment)
 {
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
@@ -343,28 +346,19 @@ bool intersects(const Frustum& frustum, const OBB& obb)
 
 bool intersects(const Frustum& frustum, const Plane& plane)
 {
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
 bool intersects(const Frustum& frustum, const Vector3& point)
 {
 	// Do similar as for sphere
-	for (int i = 0; i < 6; ++i)
-	{
-		const Vector3& normal = frustum.planes[i].normal;
-		const float& distance = frustum.planes[i].distance;
-		const float side = Vector3::dot(point, normal) + distance;
-		if (side < 0.0)  // TODO: What should this be?
-		{
-			return false;
-		}
-	}
-	return true;
-	// TODO: Implement
+	return intersects(frustum, Sphere(point, 0.0));
 }
 
 bool intersects(const Frustum& frustum, const Ray& ray)
 {
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
@@ -396,7 +390,7 @@ bool intersects(const LineSegment& line_segment, const Frustum& frustum)
 
 bool intersects(const LineSegment& line_segment_1, const LineSegment& line_segment_2)
 {
-	return false;
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
@@ -492,7 +486,7 @@ bool intersects(const LineSegment& line_segment, const Vector3& point)
 
 bool intersects(const LineSegment& line_segment, const Ray& ray)
 {
-	return false;
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
@@ -771,6 +765,7 @@ bool intersects(const Ray& ray, const Vector3& point)
 
 bool intersects(const Ray& ray_1, const Ray& ray_2)
 {
+	throw std::logic_error("Function not yet implemented");
 	// TODO: Implement
 }
 
@@ -826,61 +821,8 @@ bool intersects(const Sphere& sphere_1, const Sphere& sphere_2)
 	return distance_squared < radius_sum * radius_sum;
 }
 
-// Inside
-
-// bool inside(const AABB& aabb_1, const AABB& aabb_2)
-// {
-// 	ufomap_math::Vector3 min_1 = aabb_1.getMin();
-// 	ufomap_math::Vector3 max_1 = aabb_1.getMax();
-// 	ufomap_math::Vector3 min_2 = aabb_2.getMin();
-// 	ufomap_math::Vector3 max_2 = aabb_2.getMax();
-
-// 	return min_1.x() >= min_2.x() && min_1.y() >= min_2.y() && min_1.z() >= min_2.z() &&
-// 				 max_1.x() <= max_2.x() && max_1.y() <= max_2.y() && max_1.z() <= max_2.z();
-// }
-
-// bool inside(const AABB& aabb, const Frustum& frustum)
-// {
-// 	// TODO: Implement
-// 	return false;
-// }
-
-// bool inside(const AABB& aabb, const LineSegment& line_segment)
-// {
-// 	return false;
-// }
-
-// bool inside(const AABB& aabb, const OBB& obb)
-// {
-// 	// TODO: Implement
-// 	return false;
-// }
-
-// bool inside(const AABB& aabb, const Plane& plane)
-// {
-// 	return false;
-// }
-
-// bool inside(const AABB& aabb, const Ray& ray)
-// {
-// 	return false;
-// }
-
-// bool inside(const AABB& aabb, const Sphere& sphere)
-// {
-// 	const float radius_squared = sphere.radius * sphere.radius;
-
-// 	ufomap_math::Vector3 min = aabb.getMin();
-// 	ufomap_math::Vector3 max = aabb.getMax();
-
-// 	if ((sphere.center - min).squaredNorm() > radius_squared ||
-// 			(sphere.center - max).squaredNorm() > radius_squared)
-// 	{
-// 		return false;
-// 	}
-
-// 	// TODO: Get other size vertices
-// 	return false;
-// }
+/////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////// Inside tests //////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
 
 }  // namespace ufomap_geometry

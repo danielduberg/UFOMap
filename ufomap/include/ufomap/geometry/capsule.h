@@ -1,5 +1,5 @@
-#ifndef UFOMAP_GEOMETRY_SPHERE_H
-#define UFOMAP_GEOMETRY_SPHERE_H
+#ifndef UFOMAP_GEOMETRY_CAPSULE_H
+#define UFOMAP_GEOMETRY_CAPSULE_H
 
 #include <ufomap/math/pose6.h>
 #include <ufomap/math/vector3.h>
@@ -8,20 +8,18 @@ using namespace ufomap_math;
 
 namespace ufomap_geometry
 {
-struct Sphere
+struct Capsule
 {
-	Vector3 center;
+	Vector3 start;
+	Vector3 end;
 	float radius;
 
-	inline Sphere() : center(0.0, 0.0, 0.0), radius(0.0)
+	inline Capsule() : start(0.0, 0.0, 0.0), end(0.0, 0.0, 0.0), radius(0.0)
 	{
 	}
 
-	inline Sphere(const Sphere& sphere) : center(sphere.center), radius(sphere.radius)
-	{
-	}
-
-	inline Sphere(const Vector3& center, float radius) : center(center), radius(radius)
+	inline Capsule(const Vector3& start, const Vector3& end, float radius)
+		: start(start), end(end), radius(radius)
 	{
 	}
 
@@ -42,4 +40,4 @@ struct Sphere
 };
 }  // namespace ufomap_geometry
 
-#endif  // UFOMAP_GEOMETRY_SPHERE_H
+#endif  // UFOMAP_GEOMETRY_CAPSULE_H

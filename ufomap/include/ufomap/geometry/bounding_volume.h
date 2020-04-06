@@ -7,6 +7,8 @@
 #include <ufomap/math/quaternion.h>
 #include <ufomap/math/vector3.h>
 
+#include <exception>
+
 namespace ufomap_geometry
 {
 class BoundingVolume
@@ -52,24 +54,28 @@ public:
 		return false;
 	}
 
-	// TODO: Implement
 	void translate(const ufomap_math::Vector3& translation)
 	{
+		throw std::logic_error("Function not yet implemented");
+		// TODO: Implement
 	}
 
-	// TODO: Implement
 	void rotate(const ufomap_math::Quaternion& rotation)
 	{
+		throw std::logic_error("Function not yet implemented");
+		// TODO: Implement
 	}
 
-	// TODO: Implement
 	void rotate(const ufomap_math::Vector3& rotation)
 	{
+		throw std::logic_error("Function not yet implemented");
+		// TODO: Implement
 	}
 
-	// TODO: Implement
 	void transform(const ufomap_math::Pose6& transform)
 	{
+		throw std::logic_error("Function not yet implemented");
+		// TODO: Implement
 	}
 
 private:
