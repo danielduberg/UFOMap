@@ -1498,6 +1498,7 @@ public:
 			return false;
 		}
 
+		std::string file_version;
 		std::string id;
 		size_t size;
 		float res;
@@ -1507,7 +1508,7 @@ public:
 		bool compressed;
 		int data_size;
 		ufomap_geometry::BoundingVolume bounding_volume;
-		if (!readHeader(s, id, size, res, depth_levels, occupancy_thres, free_thres,
+		if (!readHeader(s, file_version, id, size, res, depth_levels, occupancy_thres, free_thres,
 										compressed, data_size, bounding_volume))
 		{
 			return false;
@@ -1671,6 +1672,7 @@ public:
 		s << (binary ? BINARY_FILE_HEADER : FILE_HEADER);
 		s << "\n# (feel free to add / change comments, but leave the first line as it "
 				 "is!)\n#\n";
+		s << "version " << FILE_VERSION << std::endl;
 		s << "id " << getTreeType() << std::endl;
 		s << "size " << size() << std::endl;
 		s << "res " << getResolution() << std::endl;
@@ -2537,10 +2539,11 @@ protected:
 		return false;
 	}
 
-	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
+	bool readHeader(std::istream& s, std::string& file_version, std::string& id, size_t& size, float& res,
 									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
 									bool& compressed, int& data_size)
 	{
+		file_version = "";
 		id = "";
 		size = 0;
 		res = 0.0;
@@ -2573,6 +2576,10 @@ protected:
 				{
 					c = s.get();
 				} while (s.good() && (c != '\n'));
+			}
+			else if ("version" == token)
+			{
+				s >> file_version;
 			}
 			else if ("id" == token)
 			{
@@ -3079,6 +3086,9 @@ protected:
 	// File headers
 	inline static const std::string FILE_HEADER = "# UFOMap octree file";
 	inline static const std::string BINARY_FILE_HEADER = "# UFOMap octree binary file";
+	
+	// File version
+	inline static const std::string FILE_VERSION = "1.0.0";
 };
 }  // namespace ufomap
 
