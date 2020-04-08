@@ -98,17 +98,17 @@ void UFOMapServer::timerCallback(const ros::TimerEvent& event)
 
 	if (0 < map_pub_.getNumSubscribers() || map_pub_.isLatched())
 	{
-		ufomap_msgs::Ufomap msg;
-		ufomap_msgs::mapToMsg(map_, msg, true);
-		msg.header = header;
+		ufomap_msgs::Ufomap::Ptr msg(new ufomap_msgs::Ufomap);
+		ufomap_msgs::mapToMsg(map_, *msg, true);
+		msg->header = header;
 		map_pub_.publish(msg);
 	}
 
 	if (0 < map_binary_pub_.getNumSubscribers() || map_binary_pub_.isLatched())
 	{
-		ufomap_msgs::Ufomap msg;
-		ufomap_msgs::mapToMsg(map_, msg, false, true);
-		msg.header = header;
+		ufomap_msgs::Ufomap::Ptr msg(new ufomap_msgs::Ufomap);
+		ufomap_msgs::mapToMsg(map_, *msg, false, true);
+		msg->header = header;
 		map_binary_pub_.publish(msg);
 	}
 
