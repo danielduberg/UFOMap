@@ -82,7 +82,7 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME}
-  src/geometry/intersects.cpp
+  src/geometry/collision_checks.cpp
   src/math/pose6.cpp
   src/math/quaternion.cpp
   src/octree_rgb.cpp
