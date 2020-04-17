@@ -8,12 +8,14 @@
 #include <ufomap/geometry/plane.h>
 #include <ufomap/geometry/ray.h>
 #include <ufomap/geometry/sphere.h>
+#include <ufomap/math/vector3.h>
 
 #include <variant>
 
 namespace ufomap_geometry
 {
-using BoundingVar = std::variant<AABB, Frustum, LineSegment, OBB, Plane, Ray, Sphere>;
+using BoundingVar =
+		std::variant<AABB, Frustum, LineSegment, OBB, Vector3, Plane, Ray, Sphere>;
 
 }  // namespace ufomap_geometry
 
