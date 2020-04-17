@@ -32,11 +32,6 @@ public:
 		return "Octree";
 	}
 
-	virtual std::string getTreeTypeOctomap() const override
-	{
-		return "OcTree";
-	}
-
 	//
 	// Read/write
 	//
@@ -93,15 +88,15 @@ protected:
 		return true;
 	}
 
-	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
-																		 unsigned int current_depth,
-																		 float occupancy_thres_log, float free_thres_log,
-																		 bool from_octomap = false) override;
+	// virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
+	// 																	 unsigned int current_depth,
+	// 																	 float occupancy_thres_log, float free_thres_log,
+	// 																	 bool from_octomap = false) override;
 
-	virtual bool writeBinaryNodesRecurs(std::ostream& s,
-																			const InnerNode<OccupancyNode>& node,
-																			unsigned int current_depth,
-																			bool to_octomap = false) const override;
+	// virtual bool writeBinaryNodesRecurs(std::ostream& s,
+	// 																		const InnerNode<OccupancyNode>& node,
+	// 																		unsigned int current_depth,
+	// 																		bool to_octomap = false) const override;
 };
 }  // namespace ufomap
 

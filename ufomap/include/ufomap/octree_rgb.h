@@ -61,11 +61,6 @@ public:
 		return "OctreeRGB";
 	}
 
-	virtual std::string getTreeTypeOctomap() const override
-	{
-		return "ColorOcTree";
-	}
-
 	//
 	// Insertion
 	//
