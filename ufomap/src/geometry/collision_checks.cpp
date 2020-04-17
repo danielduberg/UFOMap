@@ -710,10 +710,7 @@ bool intersects(const Vector3& point, const Plane& plane)
 
 bool intersects(const Vector3& point_1, const Vector3& point_2)
 {
-	if (point_1 == point_2)  // TODO: Almost equal?
-	{
-		return true;
-	}
+	return point_1 == point_2; // TODO: Almost equal?
 }
 
 bool intersects(const Vector3& point, const Ray& ray)
