@@ -2,7 +2,10 @@
 #define UFOMAP_GEOMETRY_AXIS_ALIGNED_BOUNDING_BOX_H
 
 #include <ufomap/geometry/obb.h>
+#include <ufomap/math/pose6.h>
 #include <ufomap/math/vector3.h>
+
+#include <exception>
 
 using namespace ufomap_math;
 
@@ -19,12 +22,12 @@ struct AABB
 
 	inline AABB(const AABB& aabb) : center(aabb.center), half_size(aabb.half_size)
 	{
-		}
+	}
 
-	// inline AABB(const Vector3& center, const Vector3& half_size)
-	// 	: center(center), half_size(half_size)
-	// {
-	// }
+	inline AABB(const Vector3& center, float half_size)
+		: center(center), half_size(half_size, half_size, half_size)
+	{
+	}
 
 	inline AABB(const Vector3& min, const Vector3& max) : half_size((max - min) / 2.0)
 	{
@@ -43,16 +46,19 @@ struct AABB
 
 	inline void translate(const Vector3& translation)
 	{
-		center += translation;
+		throw std::logic_error("Function not yet implemented");
+		// center += translation;
 	}
 
 	inline void rotate(const Vector3& rotation)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 
 	inline OBB transform(const Pose6& transform) const
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 };

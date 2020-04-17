@@ -3,8 +3,10 @@
 
 #include <ufomap/geometry/plane.h>
 #include <ufomap/math/vector3.h>
+#include <ufomap/math/pose6.h>
 
 #include <array>
+#include <exception>
 
 using namespace ufomap_math;
 
@@ -127,16 +129,19 @@ struct Frustum
 
 	inline void translate(const Vector3& translation)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 
 	inline void rotate(const Vector3& rotation)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 
 	inline void transform(const Pose6& transform)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 };

@@ -30,23 +30,30 @@ public:
 		return bounding_volume_.empty();
 	}
 
-	template <typename TYPE>
-	bool intersects(const TYPE& other) const
+	// template <typename TYPE>
+	// bool intersects(const TYPE& other) const
+	// {
+	// 	for (const BoundingVar& bv : bounding_volume_)
+	// 	{
+	// 		if (std::visit([other](auto&& arg)
+	// 											 -> bool { return ufomap_geometry::intersects(other, arg); },
+	// 									 bv))
+	// 		{
+	// 			return true;
+	// 		}
+	// 	}
+	// }
+
+	bool intersects(const BoundingVar& other) const
 	{
-		for (const BoundingVar& bv : bounding_volume_)
-		{
-			if (std::visit([other](auto&& arg) -> bool { return intersects(other, arg); }, bv))
-			{
-				return true;
-			}
-		}
+		return std::visit([&](auto&& arg) -> bool { return intersects(arg); }, other);
 	}
 
 	bool intersects(const BoundingVolume& other) const
 	{
 		for (const BoundingVar& other_bv : other.bounding_volume_)
 		{
-			if (std::visit([&](auto&& arg) -> bool { return intersects(arg); }, other_bv))
+			if (intersects(other_bv))
 			{
 				return true;
 			}

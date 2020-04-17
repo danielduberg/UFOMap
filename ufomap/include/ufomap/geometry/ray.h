@@ -1,7 +1,10 @@
 #ifndef UFOMAP_GEOMETRY_RAY_H
 #define UFOMAP_GEOMETRY_RAY_H
 
+#include <ufomap/math/pose6.h>
 #include <ufomap/math/vector3.h>
+
+#include <exception>
 
 using namespace ufomap_math;
 
@@ -27,16 +30,19 @@ struct Ray
 
 	inline void translate(const Vector3& translation)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 
 	inline void rotate(const Vector3& rotation)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 
 	inline void transform(const Pose6& transform)
 	{
+		throw std::logic_error("Function not yet implemented");
 		// TODO: Implement
 	}
 };
