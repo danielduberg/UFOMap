@@ -1,14 +1,13 @@
 #ifndef UFOMAP_CODE_H
 #define UFOMAP_CODE_H
 
+#include <immintrin.h>  // x86intrin
+#include <stdint.h>
 #include <ufomap/key.h>
 
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include <stdint.h>
-#include <x86intrin.h>
 
 namespace ufomap
 {
@@ -248,8 +247,11 @@ public:
 	};
 
 private:
-	__attribute__((target("default"))) static uint64_t splitBy3(unsigned int a)
+	static uint64_t splitBy3(unsigned int a)
 	{
+#if defined(__BMI2__) || defined(__AVX2__)  // TODO: Is correct?
+		return _pdep_u64(static_cast<uint64_t>(a), 0x9249249249249249);
+#else
 		uint64_t code = static_cast<uint64_t>(a) & 0x1fffff;
 		code = (code | code << 32) & 0x1f00000000ffff;
 		code = (code | code << 16) & 0x1f0000ff0000ff;
@@ -257,15 +259,14 @@ private:
 		code = (code | code << 4) & 0x10c30c30c30c30c3;
 		code = (code | code << 2) & 0x1249249249249249;
 		return code;
+#endif
 	}
 
-	__attribute__((target("bmi2"))) static uint64_t splitBy3(unsigned int a)
+	static unsigned int get3Bits(uint64_t code)
 	{
-		return _pdep_u64(static_cast<uint64_t>(a), 0x9249249249249249);
-	}
-
-	__attribute__((target("default"))) static unsigned int get3Bits(uint64_t code)
-	{
+#if defined(__BMI2__) || defined(__AVX2__)  // TODO: Is correct?
+		return static_cast<unsigned int>(_pext_u64(code, 0x9249249249249249));
+#else
 		uint64_t a = code & 0x1249249249249249;
 		a = (a ^ (a >> 2)) & 0x10c30c30c30c30c3;
 		a = (a ^ (a >> 4)) & 0x100f00f00f00f00f;
@@ -273,11 +274,7 @@ private:
 		a = (a ^ (a >> 16)) & 0x1f00000000ffff;
 		a = (a ^ a >> 32) & 0x1fffff;
 		return static_cast<unsigned int>(a);
-	}
-
-	__attribute__((target("bmi2"))) static unsigned int get3Bits(uint64_t code)
-	{
-		return static_cast<unsigned int>(_pext_u64(code, 0x9249249249249249));
+#endif
 	}
 
 private:

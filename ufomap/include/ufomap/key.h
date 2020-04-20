@@ -1,6 +1,8 @@
 #ifndef UFOMAP_KEY_H
 #define UFOMAP_KEY_H
 
+#include <immintrin.h>  // x86intrin
+#include <stdint.h>
 #include <ufomap/types.h>
 
 #include <array>
@@ -8,9 +10,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include <stdint.h>
-#include <x86intrin.h>
 
 namespace ufomap
 {
@@ -156,19 +155,19 @@ public:
 	 */
 	struct KeyHash
 	{
-		__attribute__((target("default"))) inline size_t operator()(const Key& key) const
+		inline size_t operator()(const Key& key) const
 		{
-			return splitBy3(key[0]) | (splitBy3(key[1]) << 1) | (splitBy3(key[2]) << 2);
-		}
-
-		__attribute__((target("bmi2"))) inline size_t operator()(const Key& key) const
-		{
+#if defined(__BMI2__) || defined(__AVX2__)  // TODO: Is correct?
 			return _pdep_u64(static_cast<uint64_t>(key[0]), 0x9249249249249249) |
 						 _pdep_u64(static_cast<uint64_t>(key[1]), 0x2492492492492492) |
 						 _pdep_u64(static_cast<uint64_t>(key[2]), 0x4924924924924924);
+#else
+			return splitBy3(key[0]) | (splitBy3(key[1]) << 1) | (splitBy3(key[2]) << 2);
+#endif
 		}
 
 	private:
+#if !defined(__BMI2__) && !defined(__AVX2__)  // TODO: Is correct?
 		inline uint64_t splitBy3(unsigned int a) const
 		{
 			uint64_t code = static_cast<uint64_t>(a) & 0x1fffff;
@@ -179,6 +178,7 @@ public:
 			code = (code | code << 2) & 0x1249249249249249;
 			return code;
 		}
+#endif
 	};
 
 private:
