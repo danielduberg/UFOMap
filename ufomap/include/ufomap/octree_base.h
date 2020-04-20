@@ -2963,21 +2963,28 @@ protected:
 										int uncompressed_data_size) const
 	{
 		// Compress data
-		char data[uncompressed_data_size];
+		char* data = new char[uncompressed_data_size];
 		s_in.read(data, uncompressed_data_size);
 		const int max_dst_size = LZ4_compressBound(uncompressed_data_size);
-		char compressed_data[max_dst_size];
+		char* compressed_data = new char[max_dst_size];
 		const int compressed_data_size =
 				LZ4_compress_default(data, compressed_data, uncompressed_data_size, max_dst_size);
 
 		// Check if compression successful
 		if (0 > compressed_data_size)
 		{
+			// Clean up
+			delete[] data;
+			delete[] compressed_data;
 			return false;
 		}
 
 		// Write compressed data to output stream
 		s_out.write(compressed_data, compressed_data_size);
+
+		// Clean up
+		delete[] data;
+		delete[] compressed_data;
 		return true;
 	}
 
@@ -2991,20 +2998,27 @@ protected:
 		s_in.seekg(initial_read_position);
 
 		// Decompress data
-		char compressed_data[compressed_data_size];
+		char* compressed_data = new char[compressed_data_size];
 		s_in.read(compressed_data, compressed_data_size);
-		char regen_buffer[uncompressed_data_size];
+		char* regen_buffer = new char[uncompressed_data_size];
 		const int decompressed_size = LZ4_decompress_safe(
 				compressed_data, regen_buffer, compressed_data_size, uncompressed_data_size);
 
 		// Check if decompression successful
 		if (0 > decompressed_size)
 		{
+			// Clean up
+			delete[] compressed_data;
+			delete[] regen_buffer;
 			return false;
 		}
 
 		// Write decompressed data to output stream
 		s_out.write(regen_buffer, decompressed_size);
+
+		// Clean up
+		delete[] compressed_data;
+		delete[] regen_buffer;
 		return true;
 	}
 
