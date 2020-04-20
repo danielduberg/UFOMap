@@ -2971,21 +2971,16 @@ protected:
 				LZ4_compress_default(data, compressed_data, uncompressed_data_size, max_dst_size);
 
 		// Check if compression successful
-		if (0 > compressed_data_size)
+		if (0 <= compressed_data_size)
 		{
-			// Clean up
-			delete[] data;
-			delete[] compressed_data;
-			return false;
+			// Write compressed data to output stream
+			s_out.write(compressed_data, compressed_data_size);
 		}
-
-		// Write compressed data to output stream
-		s_out.write(compressed_data, compressed_data_size);
 
 		// Clean up
 		delete[] data;
 		delete[] compressed_data;
-		return true;
+		return 0 <= compressed_data_size;
 	}
 
 	bool decompressData(std::istream& s_in, std::iostream& s_out,
@@ -3005,21 +3000,16 @@ protected:
 				compressed_data, regen_buffer, compressed_data_size, uncompressed_data_size);
 
 		// Check if decompression successful
-		if (0 > decompressed_size)
+		if (0 <= decompressed_size)
 		{
-			// Clean up
-			delete[] compressed_data;
-			delete[] regen_buffer;
-			return false;
+			// Write decompressed data to output stream
+			s_out.write(regen_buffer, decompressed_size);
 		}
-
-		// Write decompressed data to output stream
-		s_out.write(regen_buffer, decompressed_size);
 
 		// Clean up
 		delete[] compressed_data;
 		delete[] regen_buffer;
-		return true;
+		return 0 <= decompressed_size;
 	}
 
 protected:
