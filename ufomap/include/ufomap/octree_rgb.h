@@ -56,7 +56,7 @@ public:
 	// Tree type
 	//
 
-	virtual std::string getTreeType() const
+	virtual std::string getTreeType() const override
 	{
 		return "OctreeRGB";
 	}
@@ -86,8 +86,7 @@ public:
 	{
 		PointCloudRGB cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
-		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n,
-														 depth);
+		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n, depth);
 	}
 
 	//

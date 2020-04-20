@@ -45,6 +45,15 @@ public:
 	virtual std::string getTreeType() const = 0;
 
 	//
+	// Version
+	//
+
+	std::string getFileVersion() const
+	{
+		return FILE_VERSION;
+	}
+
+	//
 	// Insertion
 	//
 
@@ -62,7 +71,7 @@ public:
 
 	{
 		KeyRay ray;
-		computeRay(origin, static_cast<const Point3&>(end), ray, max_range, depth);
+		computeRay(origin, end, ray, max_range, depth);
 		for (const Key& key : ray)
 		{
 			// Free space
@@ -102,7 +111,7 @@ public:
 		Key point_key;
 		for (const Point3& point : cloud)
 		{
-			point_key = coordToKey(static_cast<const Point3&>(point), 0);
+			point_key = coordToKey(point, 0);
 			if (temp.insert(point_key).second)
 			{
 				changed_point = keyToCoord(point_key, 0);
@@ -757,8 +766,7 @@ public:
 		return tree_iterator();
 	}
 
-	template <typename BOUNDING_TYPE>
-	tree_iterator begin_tree_bounding(const BOUNDING_TYPE& bounding_volume,
+	tree_iterator begin_tree_bounding(const ufomap_geometry::BoundingVar& bounding_volume,
 																		bool occupied_space = true, bool free_space = true,
 																		bool unknown_space = false, bool contains = false,
 																		unsigned int min_depth = 0) const
@@ -791,8 +799,7 @@ public:
 		return leaf_iterator();
 	}
 
-	template <typename BOUNDING_TYPE>
-	leaf_iterator begin_leafs_bounding(const BOUNDING_TYPE& bounding_volume,
+	leaf_iterator begin_leafs_bounding(const ufomap_geometry::BoundingVar& bounding_volume,
 																		 bool occupied_space = true, bool free_space = true,
 																		 bool unknown_space = false, bool contains = false,
 																		 unsigned int min_depth = 0) const
@@ -1312,7 +1319,7 @@ public:
 			throw std::invalid_argument("depth_levels can be maximum 21");
 		}
 
-		clear(root_, depth_levels_);
+		clearRecurs(root_, depth_levels_);
 		root_ = InnerNode<LEAF_NODE>();
 
 		depth_levels_ = depth_levels;
@@ -1369,10 +1376,8 @@ public:
 			// Get child index
 			unsigned int child_idx = code.getChildIdx(depth - 1);
 
-			current_node = (1 == depth) ? &(*static_cast<std::array<LEAF_NODE, 8>*>(
-																				inner_node->children))[child_idx] :
-																		&(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(
-																				inner_node->children))[child_idx];
+			current_node = (1 == depth) ? &(getLeafChildren(*inner_node))[child_idx] :
+																		&(getInnerChildren(*inner_node))[child_idx];
 		}
 
 		return Node<LEAF_NODE>(current_node, code);
@@ -1435,7 +1440,7 @@ public:
 		discrete_cloud.reserve(cloud.size());
 
 		KeySet discretize;
-		for ([[maybe_unused]] const auto& [point, color] : cloud)
+		for (const Point3& point : cloud)
 		{
 			Key key(coordToKey(point, depth));  // One extra copy?
 			if (discretize.insert(key).second)
@@ -1485,29 +1490,22 @@ public:
 		// check if first line valid:
 		std::string line;
 		std::getline(s, line);
-		bool binary = 0 == line.compare(0, BINARY_FILE_HEADER.length(), BINARY_FILE_HEADER);
-		if (!binary)
-		{
-			if (0 != line.compare(0, FILE_HEADER.length(), FILE_HEADER))
-			{
-				return false;
-			}
-		}
-		else if (!binarySupport())
+		if (0 != line.compare(0, FILE_HEADER.length(), FILE_HEADER))
 		{
 			return false;
 		}
 
 		std::string file_version;
 		std::string id;
+		bool binary;
 		float resolution;
 		unsigned int depth_levels;
 		float occupancy_thres;
 		float free_thres;
 		bool compressed;
 		int uncompressed_data_size;
-		if (!readHeader(s, file_version, id, resolution, depth_levels, occupancy_thres,
-										free_thres, compressed, uncompressed_data_size))
+		if (!readHeader(s, file_version, id, binary, resolution, depth_levels,
+										occupancy_thres, free_thres, compressed, uncompressed_data_size))
 		{
 			return false;
 		}
@@ -1540,11 +1538,10 @@ public:
 										binary);
 	}
 
-	template <typename BOUNDING_TYPE>
-	bool readData(std::istream& s, const BOUNDING_TYPE& bounding_volume, float resolution,
-								unsigned int depth_levels, float occupancy_thres, float free_thres,
-								int uncompressed_data_size = -1, bool compressed = false,
-								bool binary = false)
+	bool readData(std::istream& s, const ufomap_geometry::BoundingVar& bounding_volume,
+								float resolution, unsigned int depth_levels, float occupancy_thres,
+								float free_thres, int uncompressed_data_size = -1,
+								bool compressed = false, bool binary = false)
 	{
 		ufomap_geometry::BoundingVolume bv;
 		bv.add(bounding_volume);
@@ -1606,9 +1603,9 @@ public:
 		return write(filename, ufomap_geometry::BoundingVolume(), compress, binary, depth);
 	}
 
-	template <typename BOUNDING_TYPE>
-	bool write(const std::string& filename, const BOUNDING_TYPE& bounding_volume,
-						 bool compress = false, bool binary = false, unsigned int depth = 0) const
+	bool write(const std::string& filename,
+						 const ufomap_geometry::BoundingVar& bounding_volume, bool compress = false,
+						 bool binary = false, unsigned int depth = 0) const
 	{
 		ufomap_geometry::BoundingVolume bv;
 		bv.add(bounding_volume);
@@ -1642,9 +1639,8 @@ public:
 		return write(s, ufomap_geometry::BoundingVolume(), compress, binary, depth);
 	}
 
-	template <typename BOUNDING_TYPE>
-	bool write(std::ostream& s, const BOUNDING_TYPE& bounding_volume, bool compress = false,
-						 bool binary = false, unsigned int depth = 0) const
+	bool write(std::ostream& s, const ufomap_geometry::BoundingVar& bounding_volume,
+						 bool compress = false, bool binary = false, unsigned int depth = 0) const
 	{
 		ufomap_geometry::BoundingVolume bv;
 		bv.add(bounding_volume);
@@ -1671,11 +1667,12 @@ public:
 		}
 
 		// Write header
-		s << (binary ? BINARY_FILE_HEADER : FILE_HEADER);
+		s << FILE_HEADER;
 		s << "\n# (feel free to add / change comments, but leave the first line as it "
 				 "is!)\n#\n";
-		s << "version " << FILE_VERSION << std::endl;
+		s << "version " << getFileVersion() << std::endl;
 		s << "id " << getTreeType() << std::endl;
+		s << "binary " << binary << std::endl;
 		s << "resolution " << getResolution() << std::endl;
 		s << "depth_levels " << getTreeDepthLevels() << std::endl;
 		s << "occupancy_thres " << getOccupancyThres() << std::endl;
@@ -1698,8 +1695,7 @@ public:
 		return writeData(s, ufomap_geometry::BoundingVolume(), compress, binary, depth);
 	}
 
-	template <typename BOUNDING_TYPE>
-	int writeData(std::ostream& s, const BOUNDING_TYPE& bounding_volume,
+	int writeData(std::ostream& s, const ufomap_geometry::BoundingVar& bounding_volume,
 								bool compress = false, bool binary = false, unsigned int depth = 0) const
 	{
 		ufomap_geometry::BoundingVolume bv;
@@ -1800,10 +1796,8 @@ protected:
 		{
 			InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
 
-			if (!hasChildren(inner_node))
-			{
-				createChildren(inner_node, current_depth);
-			}
+			// Create children if they do not exist
+			expand(inner_node, current_depth);
 
 			unsigned int child_depth = current_depth - 1;
 
@@ -1811,11 +1805,9 @@ protected:
 			unsigned int child_idx = code.getChildIdx(child_depth);
 
 			// Get child
-			LEAF_NODE* child_node =
-					(0 == child_depth) ?
-							&(*static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children))[child_idx] :
-							&(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(
-									inner_node.children))[child_idx];
+			LEAF_NODE* child_node = (0 == child_depth) ?
+																	&(getLeafChildren(inner_node))[child_idx] :
+																	&(getInnerChildren(inner_node))[child_idx];
 
 			auto [child, changed] =
 					updateNodeValueRecurs(code, logit_value, *child_node, child_depth, set_value);
@@ -1843,10 +1835,7 @@ protected:
 
 				if (0 < current_depth)
 				{
-					InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
-					inner_node.contains_free = isFree(inner_node);
-					inner_node.contains_unknown = isUnknown(inner_node);
-					deleteChildren(inner_node, current_depth);
+					prune(static_cast<InnerNode<LEAF_NODE>&>(node), current_depth);
 				}
 			}
 			else
@@ -1859,21 +1848,16 @@ protected:
 					InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
 					if (!isOccupied(node))
 					{
-						inner_node.contains_free = isFree(inner_node);
-						inner_node.contains_unknown = isUnknown(inner_node);
-						deleteChildren(inner_node, current_depth);
+						prune(inner_node, current_depth);
 					}
 					else if (hasChildren(inner_node))
 					{
 						unsigned int child_depth = current_depth - 1;
 						for (unsigned int child_idx = 0; child_idx < 8; ++child_idx)
 						{
-							LEAF_NODE* child_node =
-									(0 == child_depth) ?
-											&(*static_cast<std::array<LEAF_NODE, 8>*>(
-													inner_node.children))[child_idx] :
-											&(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(
-													inner_node.children))[child_idx];
+							LEAF_NODE* child_node = (0 == child_depth) ?
+																					&(getLeafChildren(inner_node))[child_idx] :
+																					&(getInnerChildren(inner_node))[child_idx];
 							updateNodeValueRecurs(code.getChild(child_idx), logit_value, *child_node,
 																		child_depth, set_value);
 						}
@@ -1896,56 +1880,42 @@ protected:
 	// Update node
 	//
 
-	virtual bool updateNode(InnerNode<LEAF_NODE>& node, unsigned int depth)
+	virtual bool updateNode(InnerNode<LEAF_NODE>& node,
+													unsigned int depth)  // TODO: Should this be virtual?
 	{
-		if (!hasChildren(node))  // Should this be here?
+		if (1 == depth)
 		{
-			node.contains_free = isFree(node);
-			node.contains_unknown = isUnknown(node);
-			return false;
-		}
-		else if (1 == depth)
-		{
-			return updateNode(node, (*static_cast<std::array<LEAF_NODE, 8>*>(node.children)),
-												depth);
+			return updateNode(node, getLeafChildren(node), depth);
 		}
 		else
 		{
-			return updateNode(
-					node, (*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children)),
-					depth);
+			return updateNode(node, getInnerChildren(node), depth);
 		}
 	}
 
 	virtual bool updateNode(InnerNode<LEAF_NODE>& node,
 													const std::array<LEAF_NODE, 8>& children, unsigned int depth)
 	{
-		float new_logit;
-		bool new_contains_free;
-		bool new_contains_unknown;
-
 		if (isNodeCollapsible(children))
 		{
-			new_logit = children[0].logit;
-			new_contains_free = isFreeLog(new_logit);
-			new_contains_unknown = isUnknownLog(new_logit);
-			deleteChildren(node, depth);
+			// Note: Can not assume that these are the same in this function
+			node.logit = children[0].logit;
+			prune(node, depth);
+			return true;
 		}
-		else
+
+		float new_logit = getMaxChildLogit(children);
+		bool new_contains_free = false;
+		bool new_contains_unknown = false;
+		for (const LEAF_NODE& child : children)
 		{
-			new_logit = getMaxChildLogit(children);
-			new_contains_free = false;
-			new_contains_unknown = false;
-			for (const LEAF_NODE& child : children)
+			if (isFree(child))
 			{
-				if (isFree(child))
-				{
-					new_contains_free = true;
-				}
-				else if (isUnknown(child))
-				{
-					new_contains_unknown = true;
-				}
+				new_contains_free = true;
+			}
+			else if (isUnknown(child))
+			{
+				new_contains_unknown = true;
 			}
 		}
 
@@ -1957,7 +1927,6 @@ protected:
 			node.contains_unknown = new_contains_unknown;
 			return true;
 		}
-
 		return false;
 	}
 
@@ -1965,32 +1934,26 @@ protected:
 													const std::array<InnerNode<LEAF_NODE>, 8>& children,
 													unsigned int depth)
 	{
-		float new_logit;
-		bool new_contains_free;
-		bool new_contains_unknown;
-
 		if (isNodeCollapsible(children))
 		{
-			new_logit = children[0].logit;
-			new_contains_free = isFreeLog(new_logit);
-			new_contains_unknown = isUnknownLog(new_logit);
-			deleteChildren(node, depth);
+			// Note: Can not assume that these are the same in this function
+			node.logit = children[0].logit;
+			prune(node, depth);
+			return true;
 		}
-		else
+
+		float new_logit = getMaxChildLogit(children);
+		bool new_contains_free = false;
+		bool new_contains_unknown = false;
+		for (const InnerNode<LEAF_NODE>& child : children)
 		{
-			new_logit = getMaxChildLogit(children);
-			new_contains_free = false;
-			new_contains_unknown = false;
-			for (const InnerNode<LEAF_NODE>& child : children)
+			if (containsFree(child))
 			{
-				if (containsFree(child))
-				{
-					new_contains_free = true;
-				}
-				if (containsUnknown(child))
-				{
-					new_contains_unknown = true;
-				}
+				new_contains_free = true;
+			}
+			if (containsUnknown(child))
+			{
+				new_contains_unknown = true;
 			}
 		}
 
@@ -2002,7 +1965,6 @@ protected:
 			node.contains_unknown = new_contains_unknown;
 			return true;
 		}
-
 		return false;
 	}
 
@@ -2082,47 +2044,63 @@ protected:
 
 	void createChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
 	{
-		// TODO: Add mutex?
+		if (nullptr != inner_node.children)
+		{
+			return;
+		}
+
 		if (1 == depth)
 		{
-			if (nullptr == inner_node.children)
-			{
-				inner_node.children = new std::array<LEAF_NODE, 8>();
-			}
-			for (LEAF_NODE& child :
-					 *static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children))
-			{
-				child.logit = inner_node.logit;
-			}
+			inner_node.children = new std::array<LEAF_NODE, 8>();
 			num_leaf_nodes_ += 8;
 			num_inner_leaf_nodes_ -= 1;
 			num_inner_nodes_ += 1;
 		}
 		else
 		{
-			if (nullptr == inner_node.children)
+			inner_node.children = new std::array<InnerNode<LEAF_NODE>, 8>();
+			for (InnerNode<LEAF_NODE>& child : getInnerChildren(inner_node))
 			{
-				inner_node.children = new std::array<InnerNode<LEAF_NODE>, 8>();
+				child.contains_free = isFree(child);
+				child.contains_unknown = isUnknown(child);
 			}
-			for (InnerNode<LEAF_NODE>& child :
-					 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children))
+			num_inner_leaf_nodes_ += 7;  // Get 8 new and 1 is made into a inner node
+			num_inner_nodes_ += 1;
+		}
+		inner_node.all_children_same = false;  // Chould this be here or in expand?
+	}
+
+	void expand(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
+	{
+		if (!inner_node.all_children_same)
+		{
+			return;
+		}
+
+		createChildren(inner_node, depth);
+
+		if (1 == depth)
+		{
+			for (LEAF_NODE& child : getLeafChildren(inner_node))
+			{
+				child.logit = inner_node.logit;
+			}
+		}
+		else
+		{
+			for (InnerNode<LEAF_NODE>& child : getInnerChildren(inner_node))
 			{
 				child.logit = inner_node.logit;
 				child.contains_free = inner_node.contains_free;
 				child.contains_unknown = inner_node.contains_unknown;
 				child.all_children_same = true;
-				// child.children = nullptr;
 			}
-			num_inner_leaf_nodes_ += 7;  // Get 8 new and 1 is made into a inner node
-			num_inner_nodes_ += 1;
 		}
-		inner_node.all_children_same = false;
 	}
 
 	void deleteChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth,
 											bool manual_pruning = false)
 	{
-		// TODO: Add mutex?
 		inner_node.all_children_same = true;
 
 		if (nullptr == inner_node.children ||
@@ -2133,27 +2111,49 @@ protected:
 
 		if (1 == depth)
 		{
-			delete static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children);
-			inner_node.children = nullptr;
+			delete &getLeafChildren(inner_node);
 			num_leaf_nodes_ -= 8;
 			num_inner_leaf_nodes_ += 1;
 			num_inner_nodes_ -= 1;
 		}
 		else
 		{
-			std::array<InnerNode<LEAF_NODE>, 8>* children =
-					static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children);
+			std::array<InnerNode<LEAF_NODE>, 8>& children = getInnerChildren(inner_node);
 			unsigned int child_depth = depth - 1;
-			for (InnerNode<LEAF_NODE>& child : *children)
+			for (InnerNode<LEAF_NODE>& child : children)
 			{
-				deleteChildren(child, child_depth);
+				deleteChildren(child, child_depth, manual_pruning);
 			}
-			delete children;
-			inner_node.children = nullptr;
+			delete &children;
 			num_inner_leaf_nodes_ -=
 					7;  // Remove 8 and 1 inner node is made into a inner leaf node
 			num_inner_nodes_ -= 1;
 		}
+		inner_node.children = nullptr;
+	}
+
+	void prune(InnerNode<LEAF_NODE>& inner_node, unsigned int depth,
+						 bool manual_pruning = false)
+	{
+		deleteChildren(inner_node, depth, manual_pruning);
+		inner_node.contains_free = isFree(inner_node);
+		inner_node.contains_unknown = isUnknown(inner_node);
+	}
+
+	//
+	// Get children
+	//
+
+	inline std::array<LEAF_NODE, 8>&
+	getLeafChildren(const InnerNode<LEAF_NODE>& inner_node) const
+	{
+		return *static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children);
+	}
+
+	inline std::array<InnerNode<LEAF_NODE>, 8>&
+	getInnerChildren(const InnerNode<LEAF_NODE>& inner_node) const
+	{
+		return *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children);
 	}
 
 	//
@@ -2199,7 +2199,7 @@ protected:
 	// Clear
 	//
 
-	void clear(InnerNode<LEAF_NODE>& inner_node, unsigned int current_depth)
+	void clearRecurs(InnerNode<LEAF_NODE>& inner_node, unsigned int current_depth)
 	{
 		if (nullptr == inner_node.children)
 		{
@@ -2209,14 +2209,13 @@ protected:
 		if (1 < current_depth)
 		{
 			unsigned int child_depth = current_depth - 1;
-			for (InnerNode<LEAF_NODE>& child :
-					 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children))
+			for (InnerNode<LEAF_NODE>& child : getInnerChildren(inner_node))
 			{
-				clear(child, child_depth);
+				clearRecurs(child, child_depth);
 			}
 		}
 
-		deleteChildren(inner_node, current_depth, true);
+		deleteChildren(inner_node, current_depth, true);  // Prune or delete?
 	}
 
 	//
@@ -2506,11 +2505,13 @@ protected:
 	}
 
 	bool readHeader(std::istream& s, std::string& file_version, std::string& id,
-									float& resolution, unsigned int& depth_levels, float& occupancy_thres,
-									float& free_thres, bool& compressed, int& uncompressed_data_size)
+									bool& binary, float& resolution, unsigned int& depth_levels,
+									float& occupancy_thres, float& free_thres, bool& compressed,
+									int& uncompressed_data_size)
 	{
 		file_version = "";
 		id = "";
+		binary = false;
 		resolution = 0.0;
 		depth_levels = 0;
 		occupancy_thres = -1.0;
@@ -2549,6 +2550,10 @@ protected:
 			else if ("id" == token)
 			{
 				s >> id;
+			}
+			else if ("binary" == token)
+			{
+				s >> binary;
 			}
 			else if ("resolution" == token)
 			{
@@ -2596,6 +2601,11 @@ protected:
 		}
 
 		if ("" == id)
+		{
+			return false;
+		}
+
+		if (binary && !binarySupport())
 		{
 			return false;
 		}
@@ -2671,16 +2681,16 @@ protected:
 		if (!children.any())
 		{
 			static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log);
-			deleteChildren(node, current_depth);
+			prune(node, current_depth);
 			success = true;
 		}
 		else
 		{
 			success = readNodesRecurs(s, bounding_volume, node, center, current_depth,
 																occupancy_thres_log, free_thres_log);
+			updateNode(node, current_depth);
 		}
 
-		updateNode(node, current_depth);
 		return success;
 	}
 
@@ -2699,8 +2709,7 @@ protected:
 
 		std::bitset<8> child_intersects;
 		std::array<Point3, 8> child_centers;
-		std::array<InnerNode<LEAF_NODE>, 8>& child_arr =
-				*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children);
+		std::array<InnerNode<LEAF_NODE>, 8>& child_arr = getInnerChildren(node);
 		for (size_t i = 0; i < child_arr.size(); ++i)
 		{
 			child_centers[i] = getChildCenter(center, child_half_size, i);
@@ -2711,22 +2720,21 @@ protected:
 
 		if (children.any())
 		{
-			createChildren(node, current_depth);
+			expand(node, current_depth);
 		}
 
 		for (size_t i = 0; i < children.size(); ++i)
 		{
 			if (child_intersects[i])
 			{
-				InnerNode<LEAF_NODE>& child =
-						(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+				InnerNode<LEAF_NODE>& child = getInnerChildren(node)[i];
 				if (children[i])
 				{
 					if (1 == child_depth)
 					{
 						const float child_child_half_size = getNodeHalfSize(0);
-						std::array<LEAF_NODE, 8>& child_children_arr =
-								*static_cast<std::array<LEAF_NODE, 8>*>(child.children);
+						expand(child, child_depth);
+						std::array<LEAF_NODE, 8>& child_children_arr = getLeafChildren(child);
 						for (size_t j = 0; j < child_children_arr.size(); ++j)
 						{
 							if (bounding_volume.empty() ||
@@ -2743,15 +2751,13 @@ protected:
 						readNodesRecurs(s, bounding_volume, child, child_centers[i], child_depth,
 														occupancy_thres_log, free_thres_log);
 					}
+					updateNode(child, child_depth);
 				}
 				else
 				{
-					static_cast<LEAF_NODE&>(child).readData(s, occupancy_thres_log,
-																												free_thres_log);
-					deleteChildren(child, child_depth);
+					static_cast<LEAF_NODE&>(child).readData(s, occupancy_thres_log, free_thres_log);
+					prune(child, child_depth);
 				}
-
-				updateNode(child, child_depth);
 			}
 		}
 
@@ -2819,8 +2825,7 @@ protected:
 		std::array<Point3, 8> child_centers;
 		if (child_depth > min_depth)
 		{
-			std::array<InnerNode<LEAF_NODE>, 8>& child_arr =
-					*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children);
+			std::array<InnerNode<LEAF_NODE>, 8>& child_arr = getInnerChildren(node);
 			for (size_t i = 0; i < child_arr.size(); ++i)
 			{
 				child_centers[i] = getChildCenter(center, child_half_size, i);
@@ -2837,15 +2842,13 @@ protected:
 		{
 			if (child_intersects[i])
 			{
-				const InnerNode<LEAF_NODE>& child =
-						(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children))[i];
+				const InnerNode<LEAF_NODE>& child = getInnerChildren(node)[i];
 				if (children[i])
 				{
 					if (1 == child_depth)
 					{
 						const float child_child_half_size = getNodeHalfSize(0);
-						std::array<LEAF_NODE, 8>& child_children_arr =
-								*static_cast<std::array<LEAF_NODE, 8>*>(child.children);
+						std::array<LEAF_NODE, 8>& child_children_arr = getLeafChildren(child);
 						for (size_t j = 0; j < child_children_arr.size(); ++j)
 						{
 							if (bounding_volume.empty() ||
@@ -3049,7 +3052,6 @@ protected:
 
 	// File headers
 	inline static const std::string FILE_HEADER = "# UFOMap octree file";
-	inline static const std::string BINARY_FILE_HEADER = "# UFOMap octree binary file";
 
 	// File version
 	inline static const std::string FILE_VERSION = "1.0.0";

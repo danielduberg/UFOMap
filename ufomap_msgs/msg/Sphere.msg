@@ -1,3 +1,3 @@
-geometry_msgs/Point center
+ufomap_msgs/Point center
 
 float32 radius

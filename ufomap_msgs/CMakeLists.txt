@@ -14,17 +14,18 @@ add_message_files(
   FILES
   AABB.msg
   BoundingVolume.msg
-  Capsule.msg
-  Cone.msg
-  Cylinder.msg
-  Ellipsoid.msg
+#  Capsule.msg
+#  Cone.msg
+#  Cylinder.msg
+#  Ellipsoid.msg
   Frustum.msg
   LineSegment.msg
   OBB.msg
   Plane.msg
+  Point.msg
   Ray.msg
   Sphere.msg
-  Triangle.msg
+#  Triangle.msg
   Ufomap.msg
   UfomapMetaData.msg
   UfomapWithPose.msg

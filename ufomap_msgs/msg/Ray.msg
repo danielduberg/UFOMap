@@ -1,3 +1,3 @@
-geometry_msgs/Point origin
+ufomap_msgs/Point origin
 
-geometry_msgs/Vector3 direction
+ufomap_msgs/Point direction

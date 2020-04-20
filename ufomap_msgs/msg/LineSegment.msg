@@ -1,3 +1,3 @@
-geometry_msgs/Point start
+ufomap_msgs/Point start
 
-geometry_msgs/Point end
+ufomap_msgs/Point end

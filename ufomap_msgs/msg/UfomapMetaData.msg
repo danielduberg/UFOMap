@@ -1,8 +1,11 @@
-# Flag to denote a binary (only free/occupied/unknown) or full occupancy Octree
-bool binary
+# File version used
+string version
 
 # Class id of the contained Octree
 string id
+
+# Flag to denote a binary (only free/occupied/unknown) or full occupancy Octree
+bool binary
 
 # Resolution (in m) of the octree leaf nodes
 float32 resolution
@@ -20,7 +23,7 @@ float32 free_thres
 bool compressed
 
 # Size of data uncompressed
-int32 data_size
+int32 uncompressed_data_size
 
 # Bounding volume
 ufomap_msgs/BoundingVolume bounding_volume

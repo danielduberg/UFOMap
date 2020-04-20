@@ -1,3 +1,3 @@
-ufomap_msgs/Vector3 normal
+ufomap_msgs/Point normal
 
 float32 distance

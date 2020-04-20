@@ -1,3 +1,3 @@
-geometry_msgs/Point center
+ufomap_msgs/Point center
 
-geometry_msgs/Vector3 half_size
+ufomap_msgs/Point half_size
