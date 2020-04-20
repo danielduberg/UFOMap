@@ -61,6 +61,66 @@ public:
 		return false;
 	}
 
+	std::vector<BoundingVar>::iterator begin()
+	{
+		return bounding_volume_.begin();
+	}
+
+	std::vector<BoundingVar>::const_iterator begin() const
+	{
+		return bounding_volume_.begin();
+	}
+
+	std::vector<BoundingVar>::const_iterator cbegin() const
+	{
+		return bounding_volume_.cbegin();
+	}
+
+	std::vector<BoundingVar>::iterator end()
+	{
+		return bounding_volume_.end();
+	}
+
+	std::vector<BoundingVar>::const_iterator end() const
+	{
+		return bounding_volume_.end();
+	}
+
+	std::vector<BoundingVar>::const_iterator cend() const
+	{
+		return bounding_volume_.cend();
+	}
+
+	std::vector<BoundingVar>::reverse_iterator rbegin()
+	{
+		return bounding_volume_.rbegin();
+	}
+
+	std::vector<BoundingVar>::const_reverse_iterator rbegin() const
+	{
+		return bounding_volume_.rbegin();
+	}
+
+	std::vector<BoundingVar>::const_reverse_iterator crbegin() const
+	{
+		return bounding_volume_.crbegin();
+	}
+
+	std::vector<BoundingVar>::reverse_iterator rend()
+	{
+		return bounding_volume_.rend();
+	}
+
+	std::vector<BoundingVar>::const_reverse_iterator rend() const
+	{
+		return bounding_volume_.rend();
+	}
+
+	std::vector<BoundingVar>::const_reverse_iterator crend() const
+	{
+		return bounding_volume_.crend();
+	}
+
 	void translate(const ufomap_math::Vector3& translation)
 	{
 		throw std::logic_error("Function not yet implemented");

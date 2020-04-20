@@ -4,6 +4,8 @@
 #include <ufomap/geometry/bounding_volume.h>
 #include <ufomap_msgs/Ufomap.h>
 
+#include <type_traits>
+
 namespace ufomap_msgs
 {
 //
@@ -187,7 +189,46 @@ ufomap_msgs::BoundingVolume
 ufomapToMsg(const ufomap_geometry::BoundingVolume& bounding_volume)
 {
 	ufomap_msgs::BoundingVolume msg;
-	// TODO: Implement
+	for (const ufomap_geometry::BoundingVar& bv : bounding_volume)
+	{
+		std::visit(
+				[&msg](auto&& arg) -> void {
+					using T = std::decay_t<decltype(arg)>;
+					if constexpr (std::is_same_v<T, ufomap_geometry::AABB>)
+					{
+						msg.aabbs.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::Frustum>)
+					{
+						msg.frustums.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::LineSegment>)
+					{
+						msg.line_segments.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::OBB>)
+					{
+						msg.obbs.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::Plane>)
+					{
+						msg.planes.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_math::Vector3>)
+					{
+						msg.points.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::Ray>)
+					{
+						msg.rays.push_back(ufomapToMsg(arg));
+					}
+					else if constexpr (std::is_same_v<T, ufomap_geometry::Sphere>)
+					{
+						msg.spheres.push_back(ufomapToMsg(arg));
+					}
+				},
+				bv);
+	}
 	return msg;
 }
 
