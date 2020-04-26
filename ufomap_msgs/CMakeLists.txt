@@ -45,11 +45,25 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME} ${catkin_LIBRARIES}
   DEPENDS geometry_msgs message_runtime std_msgs
 )
 
-install(DIRECTORY include/
-  DESTINATION include
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+)
+
+add_library(${PROJECT_NAME} src/conversions.cpp)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
 )

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8.2)
-project(ufomap_rviz_plugin)
+project(ufomap_rviz_plugin VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 

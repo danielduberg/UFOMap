@@ -7,6 +7,7 @@
 
 #include <bitset>
 #include <sstream>
+#include <type_traits>
 
 namespace ufomap
 {
@@ -16,18 +17,18 @@ void toUfomap(const octomap::OccupancyOcTreeBase<OCTOMAP_TYPE>& map_in,
 {
 	unsigned int tree_depth = map_in.getTreeDepth();
 	map_out.clear(map_in.getResolution(), tree_depth);
-	bool add_color =
-			"OctreeRGB" == map_out.getTreeType() && "ColorOcTree" == map_in.getTreeType();
+	const bool add_color = std::is_same<UFOMAP_TYPE, ufomap::OctreeRGB>::value &&
+												 std::is_same<OCTOMAP_TYPE, octomap::ColorOcTree>::value;
 	for (auto it = map_in.begin_leafs(), it_end = map_in.end_leafs(); it != it_end; ++it)
 	{
 		auto coord = it.getCoordinate();
-		map_out.setNodeValue(coord.x(), coord.y(), coord.z(), it->getLogOdds(),
-												 tree_depth - it.getDepth());
-		if (add_color)
+		Code code(
+				map_out.coordToKey(coord.x(), coord.y(), coord.z(), tree_depth - it.getDepth()));
+		map_out.setNodeValue(code, it->getLogOdds());
+		if constexpr (add_color)
 		{
 			auto color = it->getColor();
-			map_out.setNodeColor(coord.x(), coord.y(), coord.z(), color.r, color.g, color.b,
-													 tree_depth - it.getDepth());
+			map_out.setNodeColor(code, color.r, color.g, color.b);
 		}
 	}
 }
@@ -40,35 +41,34 @@ void fromUfomap(const ufomap::OctreeBase<UFOMAP_TYPE>& map_in,
 	map_out.setResolution(map_in.getResolution());
 	map_out.clear();
 
-	bool add_color =
-			"OctreeRGB" == map_in.getTreeType() && "ColorOcTree" == map_out.getTreeType();
+	const bool add_color = std::is_same<UFOMAP_TYPE, ufomap::OctreeRGB>::value &&
+												 std::is_same<OCTOMAP_TYPE, octomap::ColorOcTree>::value;
 
 	std::stringstream s(std::ios_base::in | std::ios_base::out | std::ios_base::binary);
 
 	unsigned int min_depth =
 			std::max(0, int(map_in.getTreeDepthLevels()) - int(map_out.getTreeDepth()));
 
-	for (auto it = map_in.begin_tree(true, true, false, false, min_depth),
+	OCTOMAP_TYPE node;
+	for (auto it = map_in.begin_tree(true, true, false, true, min_depth),
 						it_end = map_in.end_tree();
 			 it != it_end; ++it)
 	{
-		OCTOMAP_TYPE node;
-		node.value = static_cast<double>(it.getLogit());
-		if (add_color)
+		node.setValue(static_cast<double>(it.getLogit()));
+		if constexpr (add_color)
 		{
-			node.color.r = it->node->color.r;
-			node.color.g = it->node->color.g;
-			node.color.b = it->node->color.b;
+			node.setColor(it->node->color.r, it->node->color.g, it->node->color.b);
 		}
 		node.writeData(s);
 
 		// 1 bit for each children; 0 empty, 1: allocated
 		std::bitset<8> children;
-		if (it.getDepth() != min_depth && it.hasChildren())
+		if (min_depth != it.getDepth() && it.hasChildren())
 		{
 			for (unsigned int i = 0; i < 8; ++i)
 			{
-				if (!map_in.isUnknown(it->code.getChild(i)))
+				Code child_code = it->code.getChild(i);
+				if (map_in.containsFree(child_code) || map_in.containsOccupied(child_code))
 				{
 					children[i] = 1;
 				}
@@ -81,6 +81,10 @@ void fromUfomap(const ufomap::OctreeBase<UFOMAP_TYPE>& map_in,
 
 	// Construct the OctoMap
 	map_out.readData(s);
+	// Need to call this because otherwise some inner nodes will have a value of 0.5
+	// (unknown) when in reality it should be free. This is because in UFOMap a node has
+	// either 0 or 8 children and unknown nodes have a higher value than free nodes.
+	map_out.updateInnerOccupancy();
 }
 }  // namespace ufomap
 

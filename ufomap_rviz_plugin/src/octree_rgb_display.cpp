@@ -1,9 +1,7 @@
-#include <ufomap_rviz_plugin/octree_rgb_display.h>
-
+#include <rviz/properties/ros_topic_property.h>
 #include <ufomap_msgs/conversions.h>
 #include <ufomap_ros/conversions.h>
-
-#include <rviz/properties/ros_topic_property.h>
+#include <ufomap_rviz_plugin/octree_rgb_display.h>
 
 #include <numeric>
 
@@ -280,8 +278,8 @@ void OctreeRGBDisplay::octreeCallback(const ufomap_msgs::Ufomap::ConstPtr& msg)
 	++num_messages_received_;
 	setStatus(rviz::StatusProperty::Ok, "Messages",
 						QString::number(num_messages_received_) + " ufomap messages received");
-	setStatusStd(rviz::StatusProperty::Ok, "Type", msg->id.c_str());
-	if (!checkType(msg->id))
+	setStatusStd(rviz::StatusProperty::Ok, "Type", msg->info.id.c_str());
+	if (!checkType(msg->info.id))
 	{
 		setStatusStd(rviz::StatusProperty::Error, "Message",
 								 "Wrong ufomap type. Use a different display type.");
@@ -299,7 +297,7 @@ void OctreeRGBDisplay::octreeCallback(const ufomap_msgs::Ufomap::ConstPtr& msg)
 
 	const std::lock_guard<std::mutex> lock(mutex_);
 
-	if (!ufomap_msgs::msgToMap(*msg, ufomap_))
+	if (!ufomap_msgs::msgToUfomap(*msg, ufomap_))
 	{
 		setStatusStd(rviz::StatusProperty::Error, "Message", "Could not create octree.");
 	}

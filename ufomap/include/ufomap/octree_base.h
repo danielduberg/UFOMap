@@ -1431,6 +1431,25 @@ public:
 	}
 
 	//
+	// Get child
+	//
+
+	Node<LEAF_NODE> getChild(const Node<LEAF_NODE>& node, unsigned int child_idx) const
+	{
+		if (!isLeaf(node))
+		{
+			throw std::exception();
+		}
+
+		if (7 < child_idx)
+		{
+			throw std::exception();
+		}
+
+		return getNode(node.code.getChild(child_idx));
+	}
+
+	//
 	// Random functions
 	//
 
@@ -2042,11 +2061,11 @@ protected:
 	// Create / delete children
 	//
 
-	void createChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
+	bool createChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
 	{
 		if (nullptr != inner_node.children)
 		{
-			return;
+			return false;
 		}
 
 		if (1 == depth)
@@ -2068,13 +2087,15 @@ protected:
 			num_inner_nodes_ += 1;
 		}
 		inner_node.all_children_same = false;  // Chould this be here or in expand?
+
+		return true;
 	}
 
-	void expand(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
+	bool expand(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
 	{
 		if (!inner_node.all_children_same)
 		{
-			return;
+			return false;
 		}
 
 		createChildren(inner_node, depth);
@@ -2096,6 +2117,8 @@ protected:
 				child.all_children_same = true;
 			}
 		}
+
+		return true;
 	}
 
 	void deleteChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth,
@@ -2487,11 +2510,11 @@ protected:
 	{
 		Point3 child_center(parent_center);
 		child_center[0] +=
-				(child_idx & 1) ? -child_half_size : child_half_size;  // TODO: Correct?
+				(child_idx & 1) ? child_half_size : -child_half_size;  // TODO: Correct?
 		child_center[1] +=
-				(child_idx & 2) ? -child_half_size : child_half_size;  // TODO: Correct?
+				(child_idx & 2) ? child_half_size : -child_half_size;  // TODO: Correct?
 		child_center[2] +=
-				(child_idx & 4) ? -child_half_size : child_half_size;  // TODO: Correct?
+				(child_idx & 4) ? child_half_size : -child_half_size;  // TODO: Correct?
 		return child_center;
 	}
 
@@ -2709,8 +2732,7 @@ protected:
 
 		std::bitset<8> child_intersects;
 		std::array<Point3, 8> child_centers;
-		std::array<InnerNode<LEAF_NODE>, 8>& child_arr = getInnerChildren(node);
-		for (size_t i = 0; i < child_arr.size(); ++i)
+		for (size_t i = 0; i < child_centers.size(); ++i)
 		{
 			child_centers[i] = getChildCenter(center, child_half_size, i);
 			child_intersects[i] = bounding_volume.empty() ||
@@ -2718,8 +2740,11 @@ protected:
 																ufomap_geometry::AABB(child_centers[i], child_half_size));
 		}
 
-		if (children.any())
+		// fprintf(stderr, "Read: Hey!\n");
+
+		// if (children.any())
 		{
+			// fprintf(stderr, "Read: %s 1\n", expand(node, current_depth) ? "Yes" : "No");
 			expand(node, current_depth);
 		}
 
@@ -2727,14 +2752,19 @@ protected:
 		{
 			if (child_intersects[i])
 			{
+				// fprintf(stderr, "Read: 1\n");
 				InnerNode<LEAF_NODE>& child = getInnerChildren(node)[i];
+				// fprintf(stderr, "Read: 2\n");
 				if (children[i])
 				{
 					if (1 == child_depth)
 					{
 						const float child_child_half_size = getNodeHalfSize(0);
+						// fprintf(stderr, "Read: %s 2\n", expand(child, child_depth) ? "Yes" : "No");
 						expand(child, child_depth);
+						// fprintf(stderr, "Read: 3\n");
 						std::array<LEAF_NODE, 8>& child_children_arr = getLeafChildren(child);
+						// fprintf(stderr, "Read: 4\n");
 						for (size_t j = 0; j < child_children_arr.size(); ++j)
 						{
 							if (bounding_volume.empty() ||
@@ -2742,21 +2772,39 @@ protected:
 											getChildCenter(child_centers[i], child_child_half_size, j),
 											child_child_half_size)))
 							{
+								// fprintf(stderr, "Read: 5\n");
 								child_children_arr[j].readData(s, occupancy_thres_log_, free_thres_log_);
+								// fprintf(stderr, "Read: 6\n");
 							}
 						}
 					}
 					else
 					{
+						// fprintf(stderr, "Read: 7\n");
 						readNodesRecurs(s, bounding_volume, child, child_centers[i], child_depth,
 														occupancy_thres_log, free_thres_log);
+						// fprintf(stderr, "Read: 8\n");
 					}
+					// fprintf(stderr, "Read: 9\n");
 					updateNode(child, child_depth);
+					// fprintf(stderr, "Read: 10\n");
 				}
 				else
 				{
+					// fprintf(stderr, "Read: 11\n");
+					// auto t = s.tellg();
+					// s.seekg(0, s.end);
+					// auto c = s.tellg();
+					// s.seekg(t, s.beg);
+					// fprintf(stderr, "Read: %d\n", t);
+					// fprintf(stderr, "Read: %d\n", c);
+					// fprintf(stderr, "Read: %d\n", s.tellg());
+					// static_cast<LEAF_NODE&>(child).logit = 0.0;
+					// fprintf(stderr, "Read: 11.5\n");
 					static_cast<LEAF_NODE&>(child).readData(s, occupancy_thres_log, free_thres_log);
+					// fprintf(stderr, "Read: 12\n");
 					prune(child, child_depth);
+					// fprintf(stderr, "Read: 13\n");
 				}
 			}
 		}
@@ -2862,8 +2910,8 @@ protected:
 					}
 					else
 					{
-						return writeNodesRecurs(s, bounding_volume, child, child_centers[i],
-																		child_depth, min_depth);
+						writeNodesRecurs(s, bounding_volume, child, child_centers[i], child_depth,
+														 min_depth);
 					}
 				}
 				else

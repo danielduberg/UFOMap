@@ -9,11 +9,14 @@
 
   <license>BSD</license>
 
-  <url type="website">https://github.com/danielduberg/ufomap_ros</url>
+  <url type="website">https://github.com/danielduberg/ufomap</url>
 
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <buildtool_depend>cmake</buildtool_depend>
   <depend>octomap</depend>
   <depend>ufomap</depend>
-  
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
 </package>

@@ -248,18 +248,20 @@ protected:
 
 		Node<LEAF_NODE> node;
 		unsigned int child_depth = top.getDepth() - 1;
-		for (unsigned int i = 0; i < 8; ++i)
+		// Do it in reverse so they come in order in the stack
+		for (int idx = 7; 0 <= idx; --idx)
 		{
-			node.code = top.code.getChild(i);
+			node.code = top.code.getChild(idx);
 
 			if (0 == child_depth)
 			{
-				node.node = &((*static_cast<std::array<LEAF_NODE, 8>*>(inner_node->children))[i]);
+				node.node =
+						&((*static_cast<std::array<LEAF_NODE, 8>*>(inner_node->children))[idx]);
 			}
 			else
 			{
 				node.node =
-						&((*static_cast<std::array<INNER_NODE, 8>*>(inner_node->children))[i]);
+						&((*static_cast<std::array<INNER_NODE, 8>*>(inner_node->children))[idx]);
 			}
 
 			if (validNode(node))
