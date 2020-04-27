@@ -1741,6 +1741,7 @@ public:
 			{
 				return -1;
 			}
+			return uncompressed_data_size;
 		}
 		else
 		{

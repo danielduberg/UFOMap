@@ -83,6 +83,7 @@ include_directories(
 
 add_library(${PROJECT_NAME}
   src/geometry/collision_checks.cpp
+  src/geometry/bounding_volume.cpp
   src/math/pose6.cpp
   src/math/quaternion.cpp
   src/octree_rgb.cpp

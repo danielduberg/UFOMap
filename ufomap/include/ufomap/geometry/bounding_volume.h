@@ -14,8 +14,7 @@ namespace ufomap_geometry
 class BoundingVolume
 {
 public:
-	template <typename TYPE>
-	void add(const TYPE& bv)
+	void add(const BoundingVar& bv)
 	{
 		bounding_volume_.push_back(bv);
 	}
@@ -30,36 +29,9 @@ public:
 		return bounding_volume_.empty();
 	}
 
-	// template <typename TYPE>
-	// bool intersects(const TYPE& other) const
-	// {
-	// 	for (const BoundingVar& bv : bounding_volume_)
-	// 	{
-	// 		if (std::visit([other](auto&& arg)
-	// 											 -> bool { return ufomap_geometry::intersects(other, arg); },
-	// 									 bv))
-	// 		{
-	// 			return true;
-	// 		}
-	// 	}
-	// }
+	bool intersects(const BoundingVar& bv) const;
 
-	bool intersects(const BoundingVar& other) const
-	{
-		return std::visit([&](auto&& arg) -> bool { return intersects(arg); }, other);
-	}
-
-	bool intersects(const BoundingVolume& other) const
-	{
-		for (const BoundingVar& other_bv : other.bounding_volume_)
-		{
-			if (intersects(other_bv))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+	bool intersects(const BoundingVolume& other) const;
 
 	std::vector<BoundingVar>::iterator begin()
 	{
