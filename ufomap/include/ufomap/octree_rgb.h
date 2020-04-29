@@ -5,8 +5,6 @@
 #include <ufomap/octree_base.h>
 #include <ufomap/types.h>
 
-#include <random>
-
 namespace ufomap
 {
 class OctreeRGB : public OctreeBase<OccupancyNodeRGB>
@@ -312,10 +310,6 @@ protected:
 
 protected:
 	bool prune_consider_color_ = false;
-
-	std::random_device dev_;
-	std::mt19937 rng_;
-	std::uniform_int_distribution<std::mt19937::result_type> dist_;
 };
 }  // namespace ufomap
 

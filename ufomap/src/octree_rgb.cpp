@@ -15,8 +15,6 @@ OctreeRGB::OctreeRGB(float resolution, unsigned int depth_levels, bool automatic
 	: OctreeBase(resolution, depth_levels, automatic_pruning, occupancy_thres, free_thres,
 							 prob_hit, prob_miss, clamping_thres_min, clamping_thres_max)
 	, prune_consider_color_(prune_consider_color)
-	, rng_(dev_())
-	, dist_(0, 10)
 {
 }
 
@@ -157,15 +155,20 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 		{
 			float node_prob = probability(node.node->logit);
 
-			double r =
-					std::sqrt((((double)(node.node->color.r * node.node->color.r)) * node_prob) +
-										(((double)(color.r * color.r)) * (0.99 - node_prob)));
-			double g =
-					std::sqrt((((double)(node.node->color.g * node.node->color.g)) * node_prob) +
-										(((double)(color.g * color.g)) * (0.99 - node_prob)));
-			double b =
-					std::sqrt((((double)(node.node->color.b * node.node->color.b)) * node_prob) +
-										(((double)(color.b * color.b)) * (0.99 - node_prob)));
+			double node_color_r = static_cast<double>(node.node->color.r);
+			double node_color_g = static_cast<double>(node.node->color.g);
+			double node_color_b = static_cast<double>(node.node->color.b);
+
+			double color_r = static_cast<double>(color.r);
+			double color_g = static_cast<double>(color.g);
+			double color_b = static_cast<double>(color.b);
+
+			double r = std::sqrt(((node_color_r * node_color_r) * node_prob) +
+													 ((color_r * color_r) * (0.99 - node_prob)));
+			double g = std::sqrt(((node_color_g * node_color_g) * node_prob) +
+													 ((color_g * color_g) * (0.99 - node_prob)));
+			double b = std::sqrt(((node_color_b * node_color_b) * node_prob) +
+													 ((color_b * color_b) * (0.99 - node_prob)));
 
 			node = setNodeColorRecurs(code, Color(r, g, b), root_, depth_levels_).first;
 		}
@@ -259,7 +262,7 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 		{
 			changed_codes_.insert(code.toDepth(current_depth));
 		}
-		
+
 		return std::make_pair(Node<OccupancyNodeRGB>(&node, code), true);
 	}
 }
@@ -387,9 +390,13 @@ Color OctreeRGB::getAverageColor(const std::vector<Color>& colors) const
 	double b = 0;
 	for (const Color& color : colors)
 	{
-		r += (color.r * color.r);
-		g += (color.g * color.g);
-		b += (color.b * color.b);
+			double color_r = static_cast<double>(color.r);
+			double color_g = static_cast<double>(color.g);
+			double color_b = static_cast<double>(color.b);
+
+		r += (color_r * color_r);
+		g += (color_g * color_g);
+		b += (color_b * color_b);
 	}
 	return Color(std::sqrt(r / colors.size()), std::sqrt(g / colors.size()),
 							 std::sqrt(b / colors.size()));
