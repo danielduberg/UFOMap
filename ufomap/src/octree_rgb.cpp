@@ -153,7 +153,8 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 		Color color_not_set;
 		if (node.node->color != color_not_set)
 		{
-			float node_prob = probability(node.node->logit);
+			double node_prob = probability(node.node->logit);
+			double node_prob_inv = 0.99 - node_prob;
 
 			double node_color_r = static_cast<double>(node.node->color.r);
 			double node_color_g = static_cast<double>(node.node->color.g);
@@ -164,11 +165,11 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 			double color_b = static_cast<double>(color.b);
 
 			double r = std::sqrt(((node_color_r * node_color_r) * node_prob) +
-													 ((color_r * color_r) * (0.99 - node_prob)));
+													 ((color_r * color_r) * node_prob_inv));
 			double g = std::sqrt(((node_color_g * node_color_g) * node_prob) +
-													 ((color_g * color_g) * (0.99 - node_prob)));
+													 ((color_g * color_g) * node_prob_inv));
 			double b = std::sqrt(((node_color_b * node_color_b) * node_prob) +
-													 ((color_b * color_b) * (0.99 - node_prob)));
+													 ((color_b * color_b) * node_prob_inv));
 
 			node = setNodeColorRecurs(code, Color(r, g, b), root_, depth_levels_).first;
 		}
@@ -390,9 +391,9 @@ Color OctreeRGB::getAverageColor(const std::vector<Color>& colors) const
 	double b = 0;
 	for (const Color& color : colors)
 	{
-			double color_r = static_cast<double>(color.r);
-			double color_g = static_cast<double>(color.g);
-			double color_b = static_cast<double>(color.b);
+		double color_r = static_cast<double>(color.r);
+		double color_g = static_cast<double>(color.g);
+		double color_b = static_cast<double>(color.b);
 
 		r += (color_r * color_r);
 		g += (color_g * color_g);
