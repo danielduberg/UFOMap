@@ -8,7 +8,8 @@ namespace ufomap_msgs
 template <typename TreeType>
 bool msgToMap(const Ufomap& msg, TreeType& tree)
 {
-	std::stringstream data_stream(std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+	std::stringstream data_stream(std::ios_base::in | std::ios_base::out |
+																std::ios_base::binary);
 	if (!msg.data.empty())
 	{
 		data_stream.write((const char*)&msg.data[0], msg.data.size());
@@ -24,6 +25,7 @@ bool msgToMap(const Ufomap& msg, TreeType& tree)
 													 msg.occupancy_thres, msg.free_thres, msg.binary);
 		}
 	}
+	return false;
 }
 
 template <typename TreeType>
@@ -38,7 +40,8 @@ bool mapToMsg(const TreeType& tree, Ufomap& msg, bool compress = false,
 	msg.free_thres = tree.getFreeThres();
 	msg.compressed = compress;
 
-	std::stringstream data_stream(std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+	std::stringstream data_stream(std::ios_base::in | std::ios_base::out |
+																std::ios_base::binary);
 	if (compress)
 	{
 		if (!tree.writeDataCompress(data_stream, msg.data_size, msg.compressed_data_size,
