@@ -1421,22 +1421,6 @@ public:
 	// Random functions
 	//
 
-	void getDiscreteCloud(const PointCloud& cloud, PointCloud& discrete_cloud,
-												unsigned int depth = 0) const
-	{
-		discrete_cloud.reserve(cloud.size());
-
-		KeySet discretize;
-		for ([[maybe_unused]] const auto& [point, color] : cloud)
-		{
-			Key key(coordToKey(point, depth));  // One extra copy?
-			if (discretize.insert(key).second)
-			{
-				discrete_cloud.push_back(keyToCoord(key));
-			}
-		}
-	}
-
 	unsigned int getTreeDepthLevels() const
 	{
 		return depth_levels_;
@@ -1658,7 +1642,7 @@ public:
 		s << "data_size " << getDataSize(data) << std::endl;
 		s << "compressed_data_size " << getDataSize(compressed_data) << std::endl;
 		s << "data" << std::endl;
-		s << compress ? compressed_data.rdbuf() : data.rdbuf();
+		s << (compress ? compressed_data.rdbuf() : data.rdbuf());
 
 		if (s.good())
 		{
