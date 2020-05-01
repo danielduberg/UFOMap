@@ -5,8 +5,6 @@
 #include <ufomap/octree_base.h>
 #include <ufomap/types.h>
 
-#include <random>
-
 namespace ufomap
 {
 class OctreeRGB : public OctreeBase<OccupancyNodeRGB>
@@ -30,7 +28,7 @@ public:
 	 * @param clamping_thres_max
 	 */
 	OctreeRGB(float resolution = 0.1, unsigned int depth_levels = 16,
-						bool automatic_pruning = true, bool prune_consider_color = false,
+						bool automatic_pruning = true, bool prune_consider_color = true,
 						float occupancy_thres = 0.5, float free_thres = 0.5, float prob_hit = 0.7,
 						float prob_miss = 0.4, float clamping_thres_min = 0.1192,
 						float clamping_thres_max = 0.971);
@@ -56,7 +54,7 @@ public:
 	// Tree type
 	//
 
-	virtual std::string getTreeType() const
+	virtual std::string getTreeType() const override
 	{
 		return "OctreeRGB";
 	}
@@ -318,10 +316,6 @@ protected:
 
 protected:
 	bool prune_consider_color_ = false;
-
-	std::random_device dev_;
-	std::mt19937 rng_;
-	std::uniform_int_distribution<std::mt19937::result_type> dist_;
 };
 }  // namespace ufomap
 
