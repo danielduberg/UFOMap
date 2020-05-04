@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-	<arg name="resolution" default="0.004" />
+	<arg name="resolution" default="0.003" />
 	<arg name="depth_levels" default="16" />
 	<arg name="multithreaded" default="false" />
 
@@ -8,7 +8,7 @@
 
 	<arg name="frame_id" default="world" />
 
-	<arg name="max_range" default="5.0" />
+	<arg name="max_range" default="2.5" />
 	<arg name="insert_discrete" default="true" />
 	<arg name="insert_depth" default="3" />
 	<arg name="insert_n" default="0" />
@@ -33,72 +33,90 @@
 	<arg name="enable_remove_nan" default="true" />
 
 	<arg name="enable_statistical_outlier_removal" default="true" />
-	<arg name="statistical_outlier_removal_mean_k" default="200" />
+	<arg name="statistical_outlier_removal_mean_k" default="300" />
 	<arg name="statistical_outlier_removal_stddev" default="1.0" />
 
 	<arg name="enable_radius_outlier_removal" default="false" />
 	<arg name="radius_outlier_removal_radius" default="0.2" />
 	<arg name="radius_outlier_removal_neighbors" default="50" />
 
+	<arg name="enable_shadow_points_filter" default="false" />
+	<arg name="normals_thres" default="0.008" />
+	<arg name="shadow_points_thres" default="0.1" />
+
+	<arg name="enable_moving_least_squares" default="false" />
+	<arg name="mls_poly_order" default="2" />
+	<arg name="mls_search_radius" default="0.008" />
+
 	<arg name="enable_registration" default="true" />
-	<arg name="icp_correspondence_distance" default="0.002" />
-	<arg name="icp_max_iterations" default="50" />
-	<arg name="icp_transform_epsilon" default="1e-5" />
-	<arg name="icp_euclidean_fitness_epsilon" default="0.00001" />
+	<arg name="icp_correspondence_distance" default="0.3" />
+	<arg name="icp_max_iterations" default="75" />
+	<arg name="icp_transform_epsilon" default="1e-9" />
+	<arg name="icp_euclidean_fitness_epsilon" default="1.0" />
+	<arg name="icp_ransac_outlier_rejection_thres" default="0.003" />
 
-  <node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="log" required="true">
-    <remap from="cloud_in" to="/camera/depth_registered/points_throttle" />
+	<node pkg="ufomap_mapping" type="ufomap_mapping_server_node" name="ufomap_mapping_server_node" output="screen" required="true">
+		<remap from="cloud_in" to="/camera/depth_registered/points_throttle" />
 
-    <param name="resolution" value="$(arg resolution)" />
+		<param name="resolution" value="$(arg resolution)" />
 		<param name="depth_levels" value="$(arg depth_levels)" />
 		<param name="multithreaded" value="$(arg multithreaded)" />
+
+		<param name="frame_id" value="$(arg frame_id)" />
+
+		<param name="max_range" value="$(arg max_range)" />
+		<param name="insert_discrete" value="$(arg insert_discrete)" />
+		<param name="insert_depth" value="$(arg insert_depth)" />
+		<param name="insert_n" value="$(arg insert_n)" />
+
+		<param name="clear_robot" value="$(arg clear_robot)" />
+		<param name="robot_height" value="$(arg robot_height)" />
+		<param name="robot_radius" value="$(arg robot_radius)" />
+
+		<param name="pub_rate" value="$(arg pub_rate)" />
+		<param name="transform_timeout" value="$(arg transform_timeout)" />
+		<param name="cloud_in_queue_size" value="$(arg cloud_in_queue_size)" />
+		<param name="map_queue_size" value="$(arg map_queue_size)" />
+		<param name="map_binary_queue_size" value="$(arg map_binary_queue_size)" />
+		<param name="map_cloud_queue_size" value="$(arg map_cloud_queue_size)" />
+		<param name="map_latch" value="$(arg map_latch)" />
+		<param name="map_binary_latch" value="$(arg map_binary_latch)" />
+		<param name="map_cloud_latch" value="$(arg map_cloud_latch)" />
+
+		<param name="enable_voxel_grid_filter" value="$(arg enable_voxel_grid_filter)" />
+
+		<param name="enable_remove_nan" value="$(arg enable_remove_nan)" />
+
+		<param name="enable_statistical_outlier_removal" value="$(arg enable_statistical_outlier_removal)" />
+		<param name="statistical_outlier_removal_mean_k" value="$(arg statistical_outlier_removal_mean_k)" />
+		<param name="statistical_outlier_removal_stddev" value="$(arg statistical_outlier_removal_stddev)" />
+
+		<param name="enable_radius_outlier_removal" value="$(arg enable_radius_outlier_removal)" />
+		<param name="radius_outlier_removal_radius" value="$(arg radius_outlier_removal_radius)" />
+		<param name="radius_outlier_removal_neighbors" value="$(arg radius_outlier_removal_neighbors)" />
+
+		<param name="enable_shadow_points_filter" value="$(arg enable_shadow_points_filter)" />
+		<param name="normals_thres" value="$(arg normals_thres)" />
+		<param name="shadow_points_thres" value="$(arg shadow_points_thres)" />
 		
-    <param name="frame_id" value="$(arg frame_id)" />
+		<param name="enable_moving_least_squares" value="$(arg enable_moving_least_squares)" />
+		<param name="mls_poly_order" value="$(arg mls_poly_order)" />
+		<param name="mls_search_radius" value="$(arg mls_search_radius)" />
 
-    <param name="max_range" value="$(arg max_range)" />
-    <param name="insert_discrete" value="$(arg insert_discrete)" />
-    <param name="insert_depth" value="$(arg insert_depth)" />
-    <param name="insert_n" value="$(arg insert_n)" />
-
-    <param name="clear_robot" value="$(arg clear_robot)" />
-    <param name="robot_height" value="$(arg robot_height)" />
-    <param name="robot_radius" value="$(arg robot_radius)" />
-
-    <param name="pub_rate" value="$(arg pub_rate)" />
-    <param name="transform_timeout" value="$(arg transform_timeout)" />
-    <param name="cloud_in_queue_size" value="$(arg cloud_in_queue_size)" />
-    <param name="map_queue_size" value="$(arg map_queue_size)" />
-    <param name="map_binary_queue_size" value="$(arg map_binary_queue_size)" />
-    <param name="map_cloud_queue_size" value="$(arg map_cloud_queue_size)" />
-    <param name="map_latch" value="$(arg map_latch)" />
-    <param name="map_binary_latch" value="$(arg map_binary_latch)" />
-    <param name="map_cloud_latch" value="$(arg map_cloud_latch)" />
-
-    <param name="enable_voxel_grid_filter" value="$(arg enable_voxel_grid_filter)" />
-
-    <param name="enable_remove_nan" value="$(arg enable_remove_nan)" />
-
-    <param name="enable_statistical_outlier_removal" value="$(arg enable_statistical_outlier_removal)" />
-    <param name="statistical_outlier_removal_mean_k" value="$(arg statistical_outlier_removal_mean_k)" />
-    <param name="statistical_outlier_removal_stddev" value="$(arg statistical_outlier_removal_stddev)" />
-
-    <param name="enable_radius_outlier_removal" value="$(arg enable_radius_outlier_removal)" />
-    <param name="radius_outlier_removal_radius" value="$(arg radius_outlier_removal_radius)" />
-    <param name="radius_outlier_removal_neighbors" value="$(arg radius_outlier_removal_neighbors)" />
-
-    <param name="enable_registration" value="$(arg enable_registration)" />
-    <param name="icp_correspondence_distance" value="$(arg icp_correspondence_distance)" />
-    <param name="icp_max_iterations" value="$(arg icp_max_iterations)" />
-    <param name="icp_transform_epsilon" value="$(arg icp_transform_epsilon)" />
-    <param name="icp_euclidean_fitness_epsilon" value="$(arg icp_euclidean_fitness_epsilon)" />
-  </node>
+		<param name="enable_registration" value="$(arg enable_registration)" />
+		<param name="icp_correspondence_distance" value="$(arg icp_correspondence_distance)" />
+		<param name="icp_max_iterations" value="$(arg icp_max_iterations)" />
+		<param name="icp_transform_epsilon" value="$(arg icp_transform_epsilon)" />
+		<param name="icp_euclidean_fitness_epsilon" value="$(arg icp_euclidean_fitness_epsilon)" />
+		<param name="icp_ransac_outlier_rejection_thres" value="$(arg icp_ransac_outlier_rejection_thres)" />
+	</node>
 
 	<arg name="model" default="$(find asp_robot)/urdf/asp_robot.urdf.xacro"/>
 	<param name="robot_description" command="$(find xacro)/xacro.py $(arg model)" />
 
-	<node pkg="robot_state_publisher" type="robot_state_publisher"  name="robot_state_publisher">
-    <param name="publish_frequency" type="double" value="30.0" />
-  </node>
+	<node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+		<param name="publish_frequency" type="double" value="30.0" />
+	</node>
 
 	<node pkg="topic_tools" type="throttle" name="throttle_cloud" args="messages /camera/depth_registered/points $(arg cloud_throttle_rate)" />
 </launch>

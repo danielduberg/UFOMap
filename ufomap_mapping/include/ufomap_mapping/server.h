@@ -85,12 +85,21 @@ private:
 	double radius_outlier_removal_radius_;
 	int radius_outlier_removal_neighbors_;
 
+	bool enable_shadow_points_filter_;
+	double normals_thres_;
+	double shadow_points_thres_;
+
+	bool enable_moving_least_squares_;
+	int mls_poly_order_;
+	double mls_search_radius_;
+
 	// Registration
 	bool enable_registration_;
 	double icp_correspondence_distance_;
 	int icp_max_iterations_;
 	double icp_transform_epsilon_;
 	double icp_euclidean_fitness_epsilon_;
+	double icp_ransac_outlier_rejection_thres_;
 };
 }  // namespace ufomap_mapping
 

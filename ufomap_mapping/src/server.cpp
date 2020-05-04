@@ -1,10 +1,15 @@
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/approximate_voxel_grid.h>
 #include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/filters/shadowpoints.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
+#include <pcl/surface/mls.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 #include <tf2/transform_datatypes.h>
@@ -15,6 +20,7 @@
 #include <ufomap_ros/conversions.h>
 
 #include <future>
+#include <iostream>
 
 namespace ufomap_mapping
 {
@@ -33,7 +39,7 @@ UFOMapServer::UFOMapServer(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
 	, tf_listener_(tf_buffer_)
 	, cs_(nh_priv)
 	, map_(nh_priv.param("resolution", 0.1), nh_priv.param("depth_levels", 16),
-				 !nh_priv.param("multithreaded", false))
+				 !nh_priv.param("multithreaded", false), true, 0.5, 0.5, 0.6, 0.4)
 {
 	// Set up dynamic reconfigure server
 	f_ = boost::bind(&UFOMapServer::configCallback, this, _1, _2);
@@ -142,6 +148,49 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 			fprintf(stderr, "After radius outlier removal:      %lu\n", pcl_cloud->size());
 		}
 
+		if (enable_shadow_points_filter_)
+		{
+			// calculates normals
+			pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> ne;
+			ne.setInputCloud(pcl_cloud);
+			pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
+					new pcl::search::KdTree<pcl::PointXYZRGB>());
+			ne.setSearchMethod(tree);
+			pcl::PointCloud<pcl::Normal>::Ptr pcl_cloud_normals(
+					new pcl::PointCloud<pcl::Normal>);
+			ne.setRadiusSearch(normals_thres_);
+			ne.compute(*pcl_cloud_normals);
+
+			// Apply shadow points filter
+			pcl::ShadowPoints<pcl::PointXYZRGB, pcl::Normal> sor(false);
+			sor.setInputCloud(pcl_cloud);
+			sor.setNormals(pcl_cloud_normals);
+			sor.setThreshold(shadow_points_thres_);
+			sor.filter(*pcl_cloud_filtered);
+			*pcl_cloud = *pcl_cloud_filtered;
+			fprintf(stderr, "After shadow points filter:        %lu\n", pcl_cloud->size());
+		}
+
+		if (enable_moving_least_squares_)
+		{
+			// Create a KD-Tree
+			pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
+					new pcl::search::KdTree<pcl::PointXYZRGB>);
+			// Init object (second point type is for the normals, even if unused)
+			pcl::MovingLeastSquares<pcl::PointXYZRGB, pcl::PointXYZRGB> mls;
+			mls.setComputeNormals(true);
+
+			// Set parameters
+			mls.setInputCloud(pcl_cloud);
+			mls.setPolynomialOrder(2);
+			mls.setSearchMethod(tree);
+			mls.setSearchRadius(0.03);
+			mls.process(*pcl_cloud_filtered);
+
+			*pcl_cloud = *pcl_cloud_filtered;
+			fprintf(stderr, "After moving least squares:        %lu\n", pcl_cloud->size());
+		}
+
 		// Registration
 		if (enable_registration_)
 		{
@@ -176,6 +225,7 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 				icp.setTransformationEpsilon(icp_transform_epsilon_);
 				// Set the euclidean distance difference epsilon (criterion 3)
 				icp.setEuclideanFitnessEpsilon(icp_euclidean_fitness_epsilon_);
+				icp.setRANSACOutlierRejectionThreshold(icp_ransac_outlier_rejection_thres_);
 
 				pcl::PointCloud<pcl::PointXYZRGB>::Ptr final(
 						new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -184,8 +234,9 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 				fprintf(stderr, "After registration:                %lu\n", pcl_cloud->size());
 				fprintf(stderr, "Registration has converged: %s, score: %f\n",
 								icp.hasConverged() ? "true" : "false", icp.getFitnessScore());
+				std::cout << "Transform:\n" << icp.getFinalTransformation() << std::endl;
 				pcl::transformPointCloud(*pcl_cloud, *pcl_cloud_filtered,
-																 icp.getFinalTransformation());
+																 icp.getFinalTransformation().inverse());
 				*pcl_cloud = *pcl_cloud_filtered;
 			}
 		}
@@ -330,11 +381,20 @@ void UFOMapServer::configCallback(ufomap_mapping::ServerConfig& config, uint32_t
 	radius_outlier_removal_radius_ = config.radius_outlier_removal_radius;
 	radius_outlier_removal_neighbors_ = config.radius_outlier_removal_neighbors;
 
+	enable_shadow_points_filter_ = config.enable_shadow_points_filter;
+	normals_thres_ = config.normals_thres;
+	shadow_points_thres_ = config.shadow_points_thres;
+
+	enable_moving_least_squares_ = config.enable_moving_least_squares;
+	mls_poly_order_ = config.mls_poly_order;
+	mls_search_radius_ = config.mls_search_radius;
+
 	enable_registration_ = config.enable_registration;
 	icp_correspondence_distance_ = config.icp_correspondence_distance;
 	icp_max_iterations_ = config.icp_max_iterations;
 	icp_transform_epsilon_ = config.icp_transform_epsilon;
 	icp_euclidean_fitness_epsilon_ = config.icp_euclidean_fitness_epsilon;
+	icp_ransac_outlier_rejection_thres_ = config.icp_ransac_outlier_rejection_thres;
 }
 
 }  // namespace ufomap_mapping
