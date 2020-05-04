@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 
 #include <ufomap/octree.h>
+#include <ufomap/octree_rgb.h>
 
 #include <ufomap_mapping/ServerConfig.h>
 
@@ -49,7 +50,7 @@ private:
 	dynamic_reconfigure::Server<ufomap_mapping::ServerConfig> cs_;
 	dynamic_reconfigure::Server<ufomap_mapping::ServerConfig>::CallbackType f_;
 
-	ufomap::Octree map_;
+	ufomap::OctreeRGB map_;
 
 	// Configureable variables
 

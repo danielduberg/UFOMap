@@ -2,20 +2,62 @@
 <launch>
 	<arg name="nodelet_manager" default="ufomap_mapping_server_nodelet_manager" />
 
-	<arg name="resolution" default="0.1" />
+	<arg name="resolution" default="0.01" />
 	<arg name="depth_levels" default="16" />
 	<arg name="multithreaded" default="true" />
+
+	<arg name="frame_id" default="world" />
+
+	<arg name="max_range" default="5.0" />
+	<arg name="insert_discrete" default="true" />
+	<arg name="insert_depth" default="3" />
+	<arg name="insert_n" default="0" />
+
+	<arg name="clear_robot" default="false" />
+	<arg name="robot_height" default="0.2" />
+	<arg name="robot_radius" default="0.5" />
+
+	<arg name="pub_rate" default="1.0" />
+	<arg name="transform_timeout" default="5.0" />
+	<arg name="cloud_in_queue_size" default="10" />
+	<arg name="map_queue_size" default="10" />
+	<arg name="map_binary_queue_size" default="10" />
+	<arg name="map_cloud_queue_size" default="10" />
+
+	<arg name="map_latch" default="false" />
+	<arg name="map_binary_latch" default="false" />
+	<arg name="map_cloud_latch" default="false" />
 
 	<node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager)" args="manager" output="screen">
 		<param name="num_worker_threads" value="12" />
 	</node>
 
 	<node pkg="nodelet" type="nodelet" name="ufomap_mapping_server_nodelet" args="load ufomap_mapping/UFOMapServerNodelet $(arg nodelet_manager)" output="log" required="true">
-		<remap from="cloud_in" to="/camera/depth/points" />
-
-		<param name="multithreaded" value="$(arg multithreaded)" />
+		<remap from="cloud_in" to="/camera/depth_registered/points" />
 
     <param name="resolution" value="$(arg resolution)" />
 		<param name="depth_levels" value="$(arg depth_levels)" />
+		<param name="multithreaded" value="$(arg multithreaded)" />
+		
+    <param name="frame_id" value="$(arg frame_id)" />
+
+    <param name="max_range" value="$(arg max_range)" />
+    <param name="insert_discrete" value="$(arg insert_discrete)" />
+    <param name="insert_depth" value="$(arg insert_depth)" />
+    <param name="insert_n" value="$(arg insert_n)" />
+
+    <param name="clear_robot" value="$(arg clear_robot)" />
+    <param name="robot_height" value="$(arg robot_height)" />
+    <param name="robot_radius" value="$(arg robot_radius)" />
+
+    <param name="pub_rate" value="$(arg pub_rate)" />
+    <param name="transform_timeout" value="$(arg transform_timeout)" />
+    <param name="cloud_in_queue_size" value="$(arg cloud_in_queue_size)" />
+    <param name="map_queue_size" value="$(arg map_queue_size)" />
+    <param name="map_binary_queue_size" value="$(arg map_binary_queue_size)" />
+    <param name="map_cloud_queue_size" value="$(arg map_cloud_queue_size)" />
+    <param name="map_latch" value="$(arg map_latch)" />
+    <param name="map_binary_latch" value="$(arg map_binary_latch)" />
+    <param name="map_cloud_latch" value="$(arg map_cloud_latch)" />
 	</node>
 </launch>

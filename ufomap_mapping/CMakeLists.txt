@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   geometry_msgs
   nodelet
+  pcl_conversions
+  pcl_ros
   roscpp
   sensor_msgs
   std_msgs
