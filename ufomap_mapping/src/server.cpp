@@ -1,9 +1,14 @@
+#include <pcl/filters/approximate_voxel_grid.h>
+#include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
+#include <tf2/transform_datatypes.h>
+#include <tf2_sensor_msgs/tf2_sensor_msgs.h>
 #include <ufomap_mapping/server.h>
 #include <ufomap_msgs/Ufomap.h>
 #include <ufomap_msgs/conversions.h>
@@ -49,66 +54,6 @@ UFOMapServer::UFOMapServer(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
 // Private functions
 void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
-	// Container for original & filtered data
-	pcl::PCLPointCloud2::Ptr cloud(new pcl::PCLPointCloud2);
-	pcl::PCLPointCloud2::Ptr temp_cloud_2(new pcl::PCLPointCloud2);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr temp_cloud(
-			new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(
-			new pcl::PointCloud<pcl::PointXYZRGB>);
-	sensor_msgs::PointCloud2::Ptr msg_filtered(new sensor_msgs::PointCloud2);
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr final(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-	// Convert to PCL data type
-	pcl_conversions::toPCL(*msg, *cloud);
-	pcl::fromPCLPointCloud2(*cloud, *temp_cloud);
-	std::vector<int> indices;
-	pcl::removeNaNFromPointCloud(*temp_cloud, *temp_cloud, indices);
-
-	// Create the filtering object
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
-	sor.setInputCloud(temp_cloud);
-	sor.setMeanK(50);
-	sor.setStddevMulThresh(1.0);
-	sor.filter(*cloud_filtered);
-
-	fprintf(stderr, "Before: %lu\n", temp_cloud->size());
-	fprintf(stderr, "After: %lu\n", cloud_filtered->size());
-
-	// pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZRGB>);
-	// for (auto it = map_.begin_leafs(true, false, false), it_end = map_.end_leafs();
-	// 		 it != it_end; ++it)
-	// {
-	// 	pcl::PointXYZRGB point;
-	// 	point.x = it.getX();
-	// 	point.y = it.getY();
-	// 	point.z = it.getZ();
-	// 	point.r = it->node->color.r;
-	// 	point.g = it->node->color.g;
-	// 	point.b = it->node->color.b;
-	// 	cloud_out->points.push_back(point);
-	// }
-	// cloud_out->width = cloud_out->points.size();
-	// cloud_out->height = 1;
-
-	// if (!cloud_out->empty())
-	// {
-	// 	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-	// 	icp.setInputSource(cloud_filtered);
-	// 	icp.setInputTarget(cloud_out);
-
-	// 	icp.align(*final);
-	// }
-	// else
-	{
-		final = cloud_filtered;
-	}
-
-	fprintf(stderr, "Final: %lu\n", final->size());
-
-	pcl::toPCLPointCloud2(*final, *temp_cloud_2);
-	pcl_conversions::fromPCL(*temp_cloud_2, *msg_filtered);
-
 	try
 	{
 		ufomap::PointCloudRGB cloud;
@@ -116,8 +61,11 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 		// auto a1 and a2 are same as:
 		geometry_msgs::TransformStamped tmp_transform = tf_buffer_.lookupTransform(
 				frame_id_, msg->header.frame_id, msg->header.stamp, transform_timeout_);
-		ufomap::toUfomap(msg_filtered, cloud);
-		ufomap_math::Pose6 transform = ufomap::toUfomap(tmp_transform.transform);
+		sensor_msgs::PointCloud2::Ptr msg_transformed(new sensor_msgs::PointCloud2);
+		tf2::doTransform(*msg, *msg_transformed, tmp_transform);
+
+		// ufomap::toUfomap(msg, cloud);
+		// ufomap_math::Pose6 transform = ufomap::toUfomap(tmp_transform.transform);
 
 		// auto a1 = std::async(std::launch::async, [this, &msg] {
 		// 	return tf_buffer_.lookupTransform(frame_id_, msg->header.frame_id,
@@ -133,7 +81,126 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 		// ufomap_math::Pose6 transform = ufomap::toUfomap(a1.get().transform);
 		// a2.wait();
 
-		cloud.transform(transform);
+		// cloud.transform(transform);
+
+		// Filtering
+		pcl::PCLPointCloud2::Ptr msg_pcl(new pcl::PCLPointCloud2);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(
+				new pcl::PointCloud<pcl::PointXYZRGB>);
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_filtered(
+				new pcl::PointCloud<pcl::PointXYZRGB>);
+		sensor_msgs::PointCloud2::Ptr msg_filtered(new sensor_msgs::PointCloud2);
+
+		// Convert to PCL ROS data type
+		pcl_conversions::toPCL(*msg_transformed, *msg_pcl);
+
+		// Convert to PCL data type
+		pcl::fromPCLPointCloud2(*msg_pcl, *pcl_cloud);
+
+		fprintf(stderr, "First:                             %lu\n", pcl_cloud->size());
+
+		if (enable_voxel_grid_filter_)
+		{  // Apply voxel filter
+			pcl::VoxelGrid<pcl::PointXYZRGB> sor_voxel;
+			sor_voxel.setInputCloud(pcl_cloud);
+			sor_voxel.setLeafSize(map_.getResolution(), map_.getResolution(),
+														map_.getResolution());
+			sor_voxel.filter(*pcl_cloud_filtered);
+			*pcl_cloud = *pcl_cloud_filtered;
+			fprintf(stderr, "After voxel filter:                %lu\n", pcl_cloud->size());
+		}
+
+		if (enable_remove_nan_)
+		{
+			// Remove NaNs
+			std::vector<int> indices;
+			pcl::removeNaNFromPointCloud(*pcl_cloud, *pcl_cloud, indices);
+			fprintf(stderr, "After remove NaN:                  %lu\n", pcl_cloud->size());
+		}
+
+		if (enable_statistical_outlier_removal_)
+		{
+			// Apply statistical outlier removal
+			pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+			sor.setInputCloud(pcl_cloud);
+			sor.setMeanK(statistical_outlier_removal_mean_k_);
+			sor.setStddevMulThresh(statistical_outlier_removal_stddev_);
+			sor.filter(*pcl_cloud_filtered);
+			*pcl_cloud = *pcl_cloud_filtered;
+			fprintf(stderr, "After statistical outlier removal: %lu\n", pcl_cloud->size());
+		}
+
+		if (enable_radius_outlier_removal_)
+		{
+			// Apply radius outlier removal
+			pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> sor;
+			sor.setInputCloud(pcl_cloud);
+			sor.setRadiusSearch(radius_outlier_removal_radius_);
+			sor.setMinNeighborsInRadius(radius_outlier_removal_neighbors_);
+			sor.filter(*pcl_cloud_filtered);
+			*pcl_cloud = *pcl_cloud_filtered;
+			fprintf(stderr, "After radius outlier removal:      %lu\n", pcl_cloud->size());
+		}
+
+		// Registration
+		if (enable_registration_)
+		{
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr icp_target_cloud(
+					new pcl::PointCloud<pcl::PointXYZRGB>);
+			for (auto it = map_.begin_leafs(), it_end = map_.end_leafs(); it != it_end; ++it)
+			{
+				pcl::PointXYZRGB point;
+				point.x = it.getX();
+				point.y = it.getY();
+				point.z = it.getZ();
+				point.r = it->node->color.r;
+				point.g = it->node->color.g;
+				point.b = it->node->color.b;
+				icp_target_cloud->push_back(point);
+			}
+			icp_target_cloud->width = icp_target_cloud->points.size();
+			icp_target_cloud->height = 1;
+
+			if (!icp_target_cloud->empty())
+			{
+				pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+				icp.setInputSource(pcl_cloud);
+				icp.setInputTarget(icp_target_cloud);
+
+				// Set the max correspondence distance to 5cm (e.g., correspondences with higher
+				// distances will be ignored)
+				icp.setMaxCorrespondenceDistance(icp_correspondence_distance_);
+				// Set the maximum number of iterations (criterion 1)
+				icp.setMaximumIterations(icp_max_iterations_);
+				// Set the transformation epsilon (criterion 2)
+				icp.setTransformationEpsilon(icp_transform_epsilon_);
+				// Set the euclidean distance difference epsilon (criterion 3)
+				icp.setEuclideanFitnessEpsilon(icp_euclidean_fitness_epsilon_);
+
+				pcl::PointCloud<pcl::PointXYZRGB>::Ptr final(
+						new pcl::PointCloud<pcl::PointXYZRGB>);
+				icp.align(*pcl_cloud);
+				// *cloud = *final;
+				fprintf(stderr, "After registration:                %lu\n", pcl_cloud->size());
+				fprintf(stderr, "Registration has converged: %s, score: %f\n",
+								icp.hasConverged() ? "true" : "false", icp.getFitnessScore());
+				pcl::transformPointCloud(*pcl_cloud, *pcl_cloud_filtered,
+																 icp.getFinalTransformation());
+				*pcl_cloud = *pcl_cloud_filtered;
+			}
+		}
+
+		// Convert to PCL ROS data type
+		pcl::toPCLPointCloud2(*pcl_cloud, *msg_pcl);
+
+		// Convert to ROS data type
+		pcl_conversions::fromPCL(*msg_pcl, *msg_filtered);
+
+		// Convert to UFOMap data type
+		ufomap::toUfomap(msg_filtered, cloud);
+
+		ufomap_math::Pose6 transform = ufomap::toUfomap(tmp_transform.transform);
+
 		if (insert_discrete_)
 		{
 			map_.insertPointCloudDiscrete(transform.translation(), cloud, max_range_, insert_n_,
@@ -249,6 +316,25 @@ void UFOMapServer::configCallback(ufomap_mapping::ServerConfig& config, uint32_t
 		cloud_pub_ = nh_priv_.advertise<sensor_msgs::PointCloud2>(
 				"map_cloud", config.map_cloud_queue_size, config.map_cloud_latch);
 	}
+
+	// Filters
+	enable_voxel_grid_filter_ = config.enable_voxel_grid_filter;
+
+	enable_remove_nan_ = config.enable_remove_nan;
+
+	enable_statistical_outlier_removal_ = config.enable_statistical_outlier_removal;
+	statistical_outlier_removal_mean_k_ = config.statistical_outlier_removal_mean_k;
+	statistical_outlier_removal_stddev_ = config.statistical_outlier_removal_stddev;
+
+	enable_radius_outlier_removal_ = config.enable_radius_outlier_removal;
+	radius_outlier_removal_radius_ = config.radius_outlier_removal_radius;
+	radius_outlier_removal_neighbors_ = config.radius_outlier_removal_neighbors;
+
+	enable_registration_ = config.enable_registration;
+	icp_correspondence_distance_ = config.icp_correspondence_distance;
+	icp_max_iterations_ = config.icp_max_iterations;
+	icp_transform_epsilon_ = config.icp_transform_epsilon;
+	icp_euclidean_fitness_epsilon_ = config.icp_euclidean_fitness_epsilon;
 }
 
 }  // namespace ufomap_mapping

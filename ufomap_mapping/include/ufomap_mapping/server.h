@@ -1,16 +1,13 @@
 #ifndef UFOMAP_MAPPING_SERVER_H
 #define UFOMAP_MAPPING_SERVER_H
-#include <ros/ros.h>
-
-#include <ufomap/octree.h>
-#include <ufomap/octree_rgb.h>
-
-#include <ufomap_mapping/ServerConfig.h>
-
 #include <dynamic_reconfigure/server.h>
+#include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.h>
+#include <ufomap/octree.h>
+#include <ufomap/octree_rgb.h>
+#include <ufomap_mapping/ServerConfig.h>
 
 namespace ufomap_mapping
 {
@@ -74,6 +71,26 @@ private:
 	unsigned int map_queue_size_;
 	unsigned int map_binary_queue_size_;
 	unsigned int map_cloud_queue_size_;
+
+	// Different filters
+	bool enable_voxel_grid_filter_;
+
+	bool enable_remove_nan_;
+
+	bool enable_statistical_outlier_removal_;
+	int statistical_outlier_removal_mean_k_;
+	double statistical_outlier_removal_stddev_;
+
+	bool enable_radius_outlier_removal_;
+	double radius_outlier_removal_radius_;
+	int radius_outlier_removal_neighbors_;
+
+	// Registration
+	bool enable_registration_;
+	double icp_correspondence_distance_;
+	int icp_max_iterations_;
+	double icp_transform_epsilon_;
+	double icp_euclidean_fitness_epsilon_;
 };
 }  // namespace ufomap_mapping
 
