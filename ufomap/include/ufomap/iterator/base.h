@@ -243,7 +243,8 @@ protected:
 
 		Node<LEAF_NODE> node;
 		unsigned int child_depth = top.getDepth() - 1;
-		for (unsigned int i = 0; i < 8; ++i)
+		// Do it in reverse so they come in order in the stack
+		for (int i = 7; 0 <= i; --i)
 		{
 			node.code = top.code.getChild(i);
 
