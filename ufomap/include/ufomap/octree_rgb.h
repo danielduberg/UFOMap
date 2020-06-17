@@ -89,8 +89,7 @@ public:
 	{
 		PointCloudRGB cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
-		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n,
-														 depth);
+		insertPointCloudDiscrete(sensor_origin, cloud_transformed, max_range, n, depth);
 	}
 
 	//
@@ -285,6 +284,8 @@ protected:
 	//
 	// Update node
 	//
+
+	virtual bool updateNode(InnerNode<OccupancyNodeRGB>& node, unsigned int depth) override;
 
 	virtual bool updateNode(InnerNode<OccupancyNodeRGB>& node,
 													const std::array<OccupancyNodeRGB, 8>& children,

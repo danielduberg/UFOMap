@@ -1747,10 +1747,8 @@ protected:
 		{
 			InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
 
-			if (!hasChildren(inner_node))
-			{
-				createChildren(inner_node, current_depth);
-			}
+			// Create children if they do not exist
+			expand(inner_node, current_depth);
 
 			unsigned int child_depth = current_depth - 1;
 
@@ -1758,11 +1756,9 @@ protected:
 			unsigned int child_idx = code.getChildIdx(child_depth);
 
 			// Get child
-			LEAF_NODE* child_node =
-					(0 == child_depth) ?
-							&(*static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children))[child_idx] :
-							&(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(
-									inner_node.children))[child_idx];
+			LEAF_NODE* child_node = (0 == child_depth) ?
+																	&(getLeafChildren(inner_node))[child_idx] :
+																	&(getInnerChildren(inner_node))[child_idx];
 
 			auto [child, changed] =
 					updateNodeValueRecurs(code, logit_value, *child_node, child_depth, set_value);
@@ -1777,7 +1773,15 @@ protected:
 					changed_codes_.insert(code.toDepth(current_depth));
 				}
 			}
-			return std::make_pair(child, changed);
+
+			if (hasChildren(inner_node))
+			{
+				return std::make_pair(child, changed);
+			}
+			else
+			{
+				return std::make_pair(Node<LEAF_NODE>(&node, current_depth), changed);
+			}
 		}
 		else
 		{
@@ -1791,42 +1795,54 @@ protected:
 				if (0 < current_depth)
 				{
 					InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
-					inner_node.contains_free = isFree(inner_node);
-					inner_node.contains_unknown = isUnknown(inner_node);
-					deleteChildren(inner_node, current_depth);
+					prune(inner_node, current_depth);
+					updateNode(inner_node, current_depth);
 				}
 			}
 			else
 			{
-				// Update value
-				node.logit = std::clamp(node.logit + logit_value, clamping_thres_min_log_,
-																clamping_thres_max_log_);
 				if (0 < current_depth)
 				{
 					InnerNode<LEAF_NODE>& inner_node = static_cast<InnerNode<LEAF_NODE>&>(node);
-					if (!isOccupied(node))
-					{
-						inner_node.contains_free = isFree(inner_node);
-						inner_node.contains_unknown = isUnknown(inner_node);
-						deleteChildren(inner_node, current_depth);
-					}
-					else if (hasChildren(inner_node))
+
+					// // Update value
+					// inner_node.logit = std::clamp(inner_node.logit + logit_value,
+					// 															clamping_thres_min_log_,
+					// clamping_thres_max_log_);
+
+					// if (!isOccupiedLog(inner_node.logit))
+					// {
+					// 	prune(inner_node, current_depth);
+					// }
+					// else if (hasChildren(inner_node))
+					if (hasChildren(inner_node))
 					{
 						unsigned int child_depth = current_depth - 1;
 						for (unsigned int child_idx = 0; child_idx < 8; ++child_idx)
 						{
-							LEAF_NODE* child_node =
-									(0 == child_depth) ?
-											&(*static_cast<std::array<LEAF_NODE, 8>*>(
-													inner_node.children))[child_idx] :
-											&(*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(
-													inner_node.children))[child_idx];
-							updateNodeValueRecurs(code.getChild(child_idx), logit_value, *child_node,
+							LEAF_NODE& child_node = (0 == child_depth) ?
+																					getLeafChildren(inner_node)[child_idx] :
+																					getInnerChildren(inner_node)[child_idx];
+							updateNodeValueRecurs(code.getChild(child_idx), logit_value, child_node,
 																		child_depth, set_value);
 						}
-						// Update this node
-						updateNode(inner_node, current_depth);
 					}
+					else
+					{
+						// Update value
+						inner_node.logit =
+								std::clamp(inner_node.logit + logit_value, clamping_thres_min_log_,
+													 clamping_thres_max_log_);
+					}
+
+					// Update this node
+					updateNode(inner_node, current_depth);
+				}
+				else
+				{
+					// Update value
+					node.logit = std::clamp(node.logit + logit_value, clamping_thres_min_log_,
+																	clamping_thres_max_log_);
 				}
 			}
 
@@ -1845,54 +1861,49 @@ protected:
 
 	virtual bool updateNode(InnerNode<LEAF_NODE>& node, unsigned int depth)
 	{
-		if (!hasChildren(node))  // Should this be here?
+		if (!hasChildren(node))
 		{
-			node.contains_free = isFree(node);
-			node.contains_unknown = isUnknown(node);
-			return false;
+			bool new_contains_free = isFreeLog(node.logit);
+			bool new_contains_unknown = isUnknownLog(node.logit);
+			bool updated = (node.contains_free != new_contains_free) ||
+										 (node.contains_unknown != new_contains_unknown);
+			node.contains_free = new_contains_free;
+			node.contains_unknown = new_contains_unknown;
+			return updated;
 		}
 		else if (1 == depth)
 		{
-			return updateNode(node, (*static_cast<std::array<LEAF_NODE, 8>*>(node.children)),
-												depth);
+			return updateNode(node, getLeafChildren(node), depth);
 		}
 		else
 		{
-			return updateNode(
-					node, (*static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(node.children)),
-					depth);
+			return updateNode(node, getInnerChildren(node), depth);
 		}
 	}
 
 	virtual bool updateNode(InnerNode<LEAF_NODE>& node,
 													const std::array<LEAF_NODE, 8>& children, unsigned int depth)
 	{
-		float new_logit;
-		bool new_contains_free;
-		bool new_contains_unknown;
-
 		if (isNodeCollapsible(children))
 		{
-			new_logit = children[0].logit;
-			new_contains_free = isFreeLog(new_logit);
-			new_contains_unknown = isUnknownLog(new_logit);
-			deleteChildren(node, depth);
+			// Note: Can not assume that these are the same in this function
+			node.logit = children[0].logit;
+			prune(node, depth);
+			return true;
 		}
-		else
+
+		double new_logit = getMaxChildLogit(children);
+		bool new_contains_free = false;
+		bool new_contains_unknown = false;
+		for (const LEAF_NODE& child : children)
 		{
-			new_logit = getMaxChildLogit(children);
-			new_contains_free = false;
-			new_contains_unknown = false;
-			for (const LEAF_NODE& child : children)
+			if (isFree(child))
 			{
-				if (isFree(child))
-				{
-					new_contains_free = true;
-				}
-				else if (isUnknown(child))
-				{
-					new_contains_unknown = true;
-				}
+				new_contains_free = true;
+			}
+			else if (isUnknown(child))
+			{
+				new_contains_unknown = true;
 			}
 		}
 
@@ -1904,7 +1915,6 @@ protected:
 			node.contains_unknown = new_contains_unknown;
 			return true;
 		}
-
 		return false;
 	}
 
@@ -1912,32 +1922,26 @@ protected:
 													const std::array<InnerNode<LEAF_NODE>, 8>& children,
 													unsigned int depth)
 	{
-		float new_logit;
-		bool new_contains_free;
-		bool new_contains_unknown;
-
 		if (isNodeCollapsible(children))
 		{
-			new_logit = children[0].logit;
-			new_contains_free = isFreeLog(new_logit);
-			new_contains_unknown = isUnknownLog(new_logit);
-			deleteChildren(node, depth);
+			// Note: Can not assume that these are the same in this function
+			node.logit = children[0].logit;
+			prune(node, depth);
+			return true;
 		}
-		else
+
+		double new_logit = getMaxChildLogit(children);
+		bool new_contains_free = false;
+		bool new_contains_unknown = false;
+		for (const InnerNode<LEAF_NODE>& child : children)
 		{
-			new_logit = getMaxChildLogit(children);
-			new_contains_free = false;
-			new_contains_unknown = false;
-			for (const InnerNode<LEAF_NODE>& child : children)
+			if (containsFree(child))
 			{
-				if (containsFree(child))
-				{
-					new_contains_free = true;
-				}
-				if (containsUnknown(child))
-				{
-					new_contains_unknown = true;
-				}
+				new_contains_free = true;
+			}
+			if (containsUnknown(child))
+			{
+				new_contains_unknown = true;
 			}
 		}
 
@@ -1949,7 +1953,6 @@ protected:
 			node.contains_unknown = new_contains_unknown;
 			return true;
 		}
-
 		return false;
 	}
 
@@ -2027,49 +2030,69 @@ protected:
 	// Create / delete children
 	//
 
-	void createChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
+	bool createChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
 	{
-		// TODO: Add mutex?
+		if (nullptr != inner_node.children)
+		{
+			return false;
+		}
+
 		if (1 == depth)
 		{
-			if (nullptr == inner_node.children)
-			{
-				inner_node.children = new std::array<LEAF_NODE, 8>();
-			}
-			for (LEAF_NODE& child :
-					 *static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children))
-			{
-				child.logit = inner_node.logit;
-			}
+			inner_node.children = new std::array<LEAF_NODE, 8>();
 			num_leaf_nodes_ += 8;
 			num_inner_leaf_nodes_ -= 1;
 			num_inner_nodes_ += 1;
 		}
 		else
 		{
-			if (nullptr == inner_node.children)
+			inner_node.children = new std::array<InnerNode<LEAF_NODE>, 8>();
+			for (InnerNode<LEAF_NODE>& child : getInnerChildren(inner_node))
 			{
-				inner_node.children = new std::array<InnerNode<LEAF_NODE>, 8>();
+				child.contains_free = isFree(child);
+				child.contains_unknown = isUnknown(child);
 			}
-			for (InnerNode<LEAF_NODE>& child :
-					 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children))
+			num_inner_leaf_nodes_ += 7;  // Get 8 new and 1 is made into a inner node
+			num_inner_nodes_ += 1;
+		}
+		inner_node.all_children_same = false;  // Chould this be here or in expand?
+
+		return true;
+	}
+
+	bool expand(InnerNode<LEAF_NODE>& inner_node, unsigned int depth)
+	{
+		if (!inner_node.all_children_same)
+		{
+			return false;
+		}
+
+		createChildren(inner_node, depth);
+
+		if (1 == depth)
+		{
+			for (LEAF_NODE& child : getLeafChildren(inner_node))
+			{
+				child.logit = inner_node.logit;
+			}
+		}
+		else
+		{
+			for (InnerNode<LEAF_NODE>& child : getInnerChildren(inner_node))
 			{
 				child.logit = inner_node.logit;
 				child.contains_free = inner_node.contains_free;
 				child.contains_unknown = inner_node.contains_unknown;
 				child.all_children_same = true;
-				// child.children = nullptr;
 			}
-			num_inner_leaf_nodes_ += 7;  // Get 8 new and 1 is made into a inner node
-			num_inner_nodes_ += 1;
 		}
-		inner_node.all_children_same = false;
+
+		return true;
 	}
 
 	void deleteChildren(InnerNode<LEAF_NODE>& inner_node, unsigned int depth,
 											bool manual_pruning = false)
 	{
-		// TODO: Add mutex?
 		inner_node.all_children_same = true;
 
 		if (nullptr == inner_node.children ||
@@ -2080,27 +2103,49 @@ protected:
 
 		if (1 == depth)
 		{
-			delete static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children);
-			inner_node.children = nullptr;
+			delete &getLeafChildren(inner_node);
 			num_leaf_nodes_ -= 8;
 			num_inner_leaf_nodes_ += 1;
 			num_inner_nodes_ -= 1;
 		}
 		else
 		{
-			std::array<InnerNode<LEAF_NODE>, 8>* children =
-					static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children);
+			std::array<InnerNode<LEAF_NODE>, 8>& children = getInnerChildren(inner_node);
 			unsigned int child_depth = depth - 1;
-			for (InnerNode<LEAF_NODE>& child : *children)
+			for (InnerNode<LEAF_NODE>& child : children)
 			{
-				deleteChildren(child, child_depth);
+				deleteChildren(child, child_depth, manual_pruning);
 			}
-			delete children;
-			inner_node.children = nullptr;
+			delete &children;
 			num_inner_leaf_nodes_ -=
 					7;  // Remove 8 and 1 inner node is made into a inner leaf node
 			num_inner_nodes_ -= 1;
 		}
+		inner_node.children = nullptr;
+	}
+
+	void prune(InnerNode<LEAF_NODE>& inner_node, unsigned int depth,
+						 bool manual_pruning = false)
+	{
+		deleteChildren(inner_node, depth, manual_pruning);
+		inner_node.contains_free = isFree(inner_node);
+		inner_node.contains_unknown = isUnknown(inner_node);
+	}
+
+	//
+	// Get children
+	//
+
+	inline std::array<LEAF_NODE, 8>&
+	getLeafChildren(const InnerNode<LEAF_NODE>& inner_node) const
+	{
+		return *static_cast<std::array<LEAF_NODE, 8>*>(inner_node.children);
+	}
+
+	inline std::array<InnerNode<LEAF_NODE>, 8>&
+	getInnerChildren(const InnerNode<LEAF_NODE>& inner_node) const
+	{
+		return *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children);
 	}
 
 	//
@@ -2629,7 +2674,7 @@ protected:
 
 		if (children.any())
 		{
-			createChildren(node, current_depth);
+			expand(node, current_depth);
 
 			// FIXME: Check so correct order
 

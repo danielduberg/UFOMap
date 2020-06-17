@@ -93,11 +93,7 @@ void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
 
 	for (const auto& [code, color] : colors)
 	{
-		if (isOccupied(code))  // TODO: Does this improve performance?
-		{
-			averageNodeColor(code, getAverageColor(color));
-			// integrateColor(code, getAverageColor(color));
-		}
+		integrateColor(code, getAverageColor(color));
 	}
 }
 
@@ -108,7 +104,7 @@ void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
 Node<OccupancyNodeRGB> OctreeRGB::setNodeColor(const Code& code, Color color)
 {
 	Node<OccupancyNodeRGB> node = getNode(code, !prune_consider_color_);
-	if (nullptr != node.node && isOccupied(node) && node.node->color != color)
+	if (nullptr != node.node && node.node->color != color)
 	{
 		setNodeColorRecurs(code, color, root_, depth_levels_);
 	}
@@ -122,10 +118,10 @@ Node<OccupancyNodeRGB> OctreeRGB::setNodeColor(const Code& code, Color color)
 Node<OccupancyNodeRGB> OctreeRGB::averageNodeColor(const Code& code, Color color)
 {
 	Node<OccupancyNodeRGB> node = getNode(code, !prune_consider_color_);
-	if (nullptr != node.node && isOccupied(node))
+	if (nullptr != node.node && node.node->color != color)
 	{
 		Color color_not_set;
-		if (node.node->color != color_not_set && node.node->color != color)
+		if (node.node->color != color_not_set)
 		{
 			// TODO: Update to LAB space
 
@@ -148,7 +144,7 @@ Node<OccupancyNodeRGB> OctreeRGB::averageNodeColor(const Code& code, Color color
 Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 {
 	Node<OccupancyNodeRGB> node = getNode(code, !prune_consider_color_);
-	if (nullptr != node.node && isOccupied(node) && node.node->color != color)
+	if (nullptr != node.node && node.node->color != color)
 	{
 		Color color_not_set;
 		if (node.node->color != color_not_set)
@@ -182,7 +178,8 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Protected functions ///////////////////////////////////
+///////////////////////////////// Protected functions
+//////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////
 
 //
@@ -221,13 +218,21 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 		if (changed)
 		{
 			// Update this node
-			changed = OctreeBase<OccupancyNodeRGB>::updateNode(inner_node, current_depth);
+			changed = updateNode(inner_node, current_depth);
 			if (changed && change_detection_enabled_)
 			{
 				changed_codes_.insert(code.toDepth(current_depth));
 			}
 		}
-		return std::make_pair(child, changed);
+
+		if (hasChildren(inner_node))
+		{
+			return std::make_pair(child, changed);
+		}
+		else
+		{
+			return std::make_pair(Node<OccupancyNodeRGB>(&node, code), changed);
+		}
 	}
 	else
 	{
@@ -249,13 +254,13 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 											inner_node.children))[child_idx] :
 									&(*static_cast<std::array<InnerNode<OccupancyNodeRGB>, 8>*>(
 											inner_node.children))[child_idx];
-					if (isOccupied(*child_node))
-					{
-						setNodeColorRecurs(code.getChild(child_idx), color, *child_node, child_depth);
-					}
+					// if (isOccupied(*child_node))
+					// {
+					setNodeColorRecurs(code.getChild(child_idx), color, *child_node, child_depth);
+					// }
 				}
 				// Update this node
-				OctreeBase<OccupancyNodeRGB>::updateNode(inner_node, current_depth);
+				updateNode(inner_node, current_depth);
 			}
 		}
 
@@ -274,7 +279,8 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 
 bool OctreeRGB::isNodeCollapsible(const std::array<OccupancyNodeRGB, 8>& children) const
 {
-	if (!prune_consider_color_ || !isOccupied(children[0]))
+	// return false;
+	if (!prune_consider_color_)
 	{
 		return OctreeBase<OccupancyNodeRGB>::isNodeCollapsible(children);
 	}
@@ -292,7 +298,8 @@ bool OctreeRGB::isNodeCollapsible(const std::array<OccupancyNodeRGB, 8>& childre
 bool OctreeRGB::isNodeCollapsible(
 		const std::array<InnerNode<OccupancyNodeRGB>, 8>& children) const
 {
-	if (!prune_consider_color_ || !isOccupied(children[0]))
+	// return false;
+	if (!prune_consider_color_)
 	{
 		return OctreeBase<OccupancyNodeRGB>::isNodeCollapsible(children);
 	}
@@ -320,14 +327,52 @@ bool OctreeRGB::isNodeCollapsible(
 // Update node
 //
 
+bool OctreeRGB::updateNode(InnerNode<OccupancyNodeRGB>& node, unsigned int depth)
+{
+	if (!hasChildren(node))
+	{
+		bool new_contains_free = isFreeLog(node.logit);
+		bool new_contains_unknown = isUnknownLog(node.logit);
+		bool updated = (node.contains_free != new_contains_free) ||
+									 (node.contains_unknown != new_contains_unknown);
+		node.contains_free = new_contains_free;
+		node.contains_unknown = new_contains_unknown;
+		return updated;
+	}
+	else if (1 == depth)
+	{
+		return updateNode(node, getLeafChildren(node), depth);
+	}
+	else
+	{
+		return updateNode(node, getInnerChildren(node), depth);
+	}
+}
+
 bool OctreeRGB::updateNode(InnerNode<OccupancyNodeRGB>& node,
 													 const std::array<OccupancyNodeRGB, 8>& children,
 													 unsigned int depth)
 {
+	if (isNodeCollapsible(children))
+	{
+		// Note: Can not assume that these are the same in this function
+		node.logit = children[0].logit;
+		if (prune_consider_color_)
+		{
+			node.color = children[0].color;
+		}
+		else
+		{
+			node.color = getAverageChildColor(children);
+		}
+		prune(node, depth);
+		return true;
+	}
+
 	Color new_color = getAverageChildColor(children);
 	bool changed = OctreeBase<OccupancyNodeRGB>::updateNode(node, children, depth);
 	changed = changed || (node.color != new_color);
-	node.color = isOccupied(node) ? new_color : Color();
+	node.color = new_color;
 	return changed;
 }
 
@@ -336,10 +381,26 @@ bool OctreeRGB::updateNode(InnerNode<OccupancyNodeRGB>& node,
 													 unsigned int depth)
 
 {
+	if (isNodeCollapsible(children))
+	{
+		// Note: Can not assume that these are the same in this function
+		node.logit = children[0].logit;
+		if (prune_consider_color_)
+		{
+			node.color = children[0].color;
+		}
+		else
+		{
+			node.color = getAverageChildColor(children);
+		}
+		prune(node, depth);
+		return true;
+	}
+
 	Color new_color = getAverageChildColor(children);
 	bool changed = OctreeBase<OccupancyNodeRGB>::updateNode(node, children, depth);
 	changed = changed || (node.color != new_color);
-	node.color = isOccupied(node) ? new_color : Color();
+	node.color = new_color;
 	return changed;
 }
 
@@ -351,9 +412,10 @@ Color OctreeRGB::getAverageChildColor(
 		const std::array<OccupancyNodeRGB, 8>& children) const
 {
 	std::vector<Color> colors;
+	const Color color_not_set;
 	for (const OccupancyNodeRGB& child : children)
 	{
-		if (isOccupied(child))
+		if (color_not_set != child.color)
 		{
 			colors.push_back(child.color);
 		}
@@ -369,9 +431,10 @@ Color OctreeRGB::getAverageChildColor(
 		const std::array<InnerNode<OccupancyNodeRGB>, 8>& children) const
 {
 	std::vector<Color> colors;
+	const Color color_not_set;
 	for (const InnerNode<OccupancyNodeRGB>& child : children)
 	{
-		if (isOccupied(child))
+		if (color_not_set != child.color)
 		{
 			colors.push_back(child.color);
 		}
