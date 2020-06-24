@@ -10,13 +10,17 @@ namespace ufomap_geometry
 struct Sphere
 {
 	Vector3 center;
-	float radius;
+	double radius;
 
 	inline Sphere() : center(0.0, 0.0, 0.0), radius(0.0)
 	{
 	}
 
-	inline Sphere(const Vector3& center, float radius) : center(center), radius(radius)
+	inline Sphere(const Sphere& sphere) : center(sphere.center), radius(sphere.radius)
+	{
+	}
+
+	inline Sphere(const Vector3& center, double radius) : center(center), radius(radius)
 	{
 	}
 };

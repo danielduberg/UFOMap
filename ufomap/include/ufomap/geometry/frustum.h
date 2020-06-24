@@ -4,31 +4,37 @@
 #include <ufomap/geometry/plane.h>
 #include <ufomap/math/vector3.h>
 
+#include <array>
+
 using namespace ufomap_math;
 
 namespace ufomap_geometry
 {
 struct Frustum
 {
-	Plane planes[6];
+	std::array<Plane, 6> planes;
 
 	inline Frustum()
 	{
 	}
 
+	inline Frustum(const Frustum& frustum) : planes(frustum.planes)
+	{
+	}
+
 	// TODO: Horizontal or vertical angle?
 	inline Frustum(const Vector3& pos, const Vector3& target, const Vector3& up,
-								 float vertical_angle, float horizontal_angle, float near_distance,
-								 float far_distance)
+								 double vertical_angle, double horizontal_angle, double near_distance,
+								 double far_distance)
 	{
-		float ratio = horizontal_angle / vertical_angle;
+		double ratio = horizontal_angle / vertical_angle;
 
 		// TODO: Check if correct
-		float tang = std::tan(vertical_angle * 0.5);
-		float near_height = near_distance * tang;
-		float near_width = near_height * ratio;
-		float far_height = far_distance * tang;
-		float far_width = far_height * ratio;
+		double tang = std::tan(vertical_angle * 0.5);
+		double near_height = near_distance * tang;
+		double near_width = near_height * ratio;
+		double far_height = far_distance * tang;
+		double far_width = far_height * ratio;
 
 		Vector3 Z = pos - target;
 		Z.normalize();
@@ -59,62 +65,62 @@ struct Frustum
 		far() = Plane(far_top_right, far_top_left, far_bottom_left);
 	}
 
-	const Plane& top() const
+	inline const Plane& top() const
 	{
 		return planes[0];
 	}
 
-	Plane& top()
+	inline Plane& top()
 	{
 		return planes[0];
 	}
 
-	const Plane& bottom() const
+	inline const Plane& bottom() const
 	{
 		return planes[1];
 	}
 
-	Plane& bottom()
+	inline Plane& bottom()
 	{
 		return planes[1];
 	}
 
-	const Plane& left() const
+	inline const Plane& left() const
 	{
 		return planes[2];
 	}
 
-	Plane& left()
+	inline Plane& left()
 	{
 		return planes[2];
 	}
 
-	const Plane& right() const
+	inline const Plane& right() const
 	{
 		return planes[3];
 	}
 
-	Plane& right()
+	inline Plane& right()
 	{
 		return planes[3];
 	}
 
-	const Plane& near() const
+	inline const Plane& near() const
 	{
 		return planes[4];
 	}
 
-	Plane& near()
+	inline Plane& near()
 	{
 		return planes[4];
 	}
 
-	const Plane& far() const
+	inline const Plane& far() const
 	{
 		return planes[5];
 	}
 
-	Plane& far()
+	inline Plane& far()
 	{
 		return planes[5];
 	}

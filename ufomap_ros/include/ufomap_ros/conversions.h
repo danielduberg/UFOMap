@@ -9,6 +9,7 @@
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Point.h>
 #include <sensor_msgs/PointCloud2.h>
 
 namespace ufomap

@@ -10,7 +10,7 @@ Quaternion::Quaternion(const Quaternion& other) : data_(other.data_)
 {
 }
 
-Quaternion::Quaternion(float w, float x, float y, float z) : data_{ w, x, y, z }
+Quaternion::Quaternion(double w, double x, double y, double z) : data_{ w, x, y, z }
 {
 }
 
@@ -19,66 +19,86 @@ Quaternion::Quaternion(const Vector3& other)
 {
 }
 
-Quaternion::Quaternion(float roll, float pitch, float yaw)
+Quaternion::Quaternion(double roll, double pitch, double yaw)
 {
-	float sroll = sin(roll);
-	float spitch = sin(pitch);
-	float syaw = sin(yaw);
-	float croll = cos(roll);
-	float cpitch = cos(pitch);
-	float cyaw = cos(yaw);
+	// double half_yaw = yaw * 0.5;
+	// double half_pitch = pitch * 0.5;
+	// double half_roll = roll * 0.5;
+	// double cos_yaw = std::cos(half_yaw);
+	// double sin_yaw = std::sin(half_yaw);
+	// double cos_pitch = std::cos(half_pitch);
+	// double sin_pitch = std::sin(half_pitch);
+	// double cos_roll = std::cos(half_roll);
+	// double sin_roll = std::sin(half_roll);
+	// RPY
+	// x() = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw;
+	// y() = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw;
+	// z() = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw;
+	// w() = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw;
+	// Euler
+	// x() = cos_roll * sin_pitch * cos_yaw + sin_roll * cos_pitch * sin_yaw;
+	// y() = cos_roll * cos_pitch * sin_yaw - sin_roll * sin_pitch * cos_yaw;
+	// z() = sin_roll * cos_pitch * cos_yaw - cos_roll * sin_pitch * sin_yaw;
+	// w() = cos_roll * cos_pitch * cos_yaw + sin_roll * sin_pitch * sin_yaw;
 
-	float m[3][3] = { // create rotational Matrix
-										{ cyaw * cpitch, cyaw * spitch * sroll - syaw * croll,
-											cyaw * spitch * croll + syaw * sroll },
-										{ syaw * cpitch, syaw * spitch * sroll + cyaw * croll,
-											syaw * spitch * croll - cyaw * sroll },
-										{ -spitch, cpitch * sroll, cpitch * croll }
+	double sroll = sin(roll);
+	double spitch = sin(pitch);
+	double syaw = sin(yaw);
+	double croll = cos(roll);
+	double cpitch = cos(pitch);
+	double cyaw = cos(yaw);
+
+	double m[3][3] = { // create rotational Matrix
+										 { cyaw * cpitch, cyaw * spitch * sroll - syaw * croll,
+											 cyaw * spitch * croll + syaw * sroll },
+										 { syaw * cpitch, syaw * spitch * sroll + cyaw * croll,
+											 syaw * spitch * croll - cyaw * sroll },
+										 { -spitch, cpitch * sroll, cpitch * croll }
 	};
 
-	float _w = (float)(sqrt(std::max(0.0f, 1 + m[0][0] + m[1][1] + m[2][2])) / 2.0);
-	float _x = (float)(sqrt(std::max(0.0f, 1 + m[0][0] - m[1][1] - m[2][2])) / 2.0);
-	float _y = (float)(sqrt(std::max(0.0f, 1 - m[0][0] + m[1][1] - m[2][2])) / 2.0);
-	float _z = (float)(sqrt(std::max(0.0f, 1 - m[0][0] - m[1][1] + m[2][2])) / 2.0);
+	double _w = (double)(sqrt(std::max(0.0, 1 + m[0][0] + m[1][1] + m[2][2])) / 2.0);
+	double _x = (double)(sqrt(std::max(0.0, 1 + m[0][0] - m[1][1] - m[2][2])) / 2.0);
+	double _y = (double)(sqrt(std::max(0.0, 1 - m[0][0] + m[1][1] - m[2][2])) / 2.0);
+	double _z = (double)(sqrt(std::max(0.0, 1 - m[0][0] - m[1][1] + m[2][2])) / 2.0);
 	w() = _w;
 	x() = (m[2][1] - m[1][2]) >= 0 ? fabs(_x) : -fabs(_x);
 	y() = (m[0][2] - m[2][0]) >= 0 ? fabs(_y) : -fabs(_y);
 	z() = (m[1][0] - m[0][1]) >= 0 ? fabs(_z) : -fabs(_z);
 }
 
-Quaternion::Quaternion(const Vector3& axis, float angle)
+Quaternion::Quaternion(const Vector3& axis, double angle)
 {
-	float sa = sin(angle / 2);
-	float ca = cos(angle / 2);
-	x() = (float)(axis.x() * sa);
-	y() = (float)(axis.y() * sa);
-	z() = (float)(axis.z() * sa);
-	w() = (float)ca;
+	double sa = sin(angle / 2);
+	double ca = cos(angle / 2);
+	x() = (double)(axis.x() * sa);
+	y() = (double)(axis.y() * sa);
+	z() = (double)(axis.z() * sa);
+	w() = (double)ca;
 }
 
 Vector3 Quaternion::toEuler() const
 {
 	// create rotational matrix
-	float n = norm();
-	float s = n > 0 ? 2.0 / (n * n) : 0.0;
+	double n = norm();
+	double s = n > 0 ? 2.0 / (n * n) : 0.0;
 
-	float xs = x() * s;
-	float ys = y() * s;
-	float zs = z() * s;
+	double xs = x() * s;
+	double ys = y() * s;
+	double zs = z() * s;
 
-	float wx = w() * xs;
-	float wy = w() * ys;
-	float wz = w() * zs;
+	double wx = w() * xs;
+	double wy = w() * ys;
+	double wz = w() * zs;
 
-	float xx = x() * xs;
-	float xy = x() * ys;
-	float xz = x() * zs;
+	double xx = x() * xs;
+	double xy = x() * ys;
+	double xz = x() * zs;
 
-	float yy = y() * ys;
-	float yz = y() * zs;
-	float zz = z() * zs;
+	double yy = y() * ys;
+	double yz = y() * zs;
+	double zz = z() * zs;
 
-	float m[3][3];
+	double m[3][3];
 
 	m[0][0] = 1.0 - (yy + zz);
 	m[1][1] = 1.0 - (xx + zz);
@@ -92,36 +112,36 @@ Vector3 Quaternion::toEuler() const
 	m[2][1] = yz + wx;
 	m[1][2] = yz - wx;
 
-	float roll = (float)atan2(m[2][1], m[2][2]);
-	float pitch = (float)atan2(-m[2][0], sqrt(m[2][1] * m[2][1] + m[2][2] * m[2][2]));
-	float yaw = (float)atan2(m[1][0], m[0][0]);
+	double roll = (double)atan2(m[2][1], m[2][2]);
+	double pitch = (double)atan2(-m[2][0], sqrt(m[2][1] * m[2][1] + m[2][2] * m[2][2]));
+	double yaw = (double)atan2(m[1][0], m[0][0]);
 
 	return Vector3(roll, pitch, yaw);
 }
 
-void Quaternion::toRotMatrix(std::vector<float>& rot_matrix_3_3) const
+void Quaternion::toRotMatrix(std::vector<double>& rot_matrix_3_3) const
 {
 	// create rotational matrix
-	float n = norm();
-	float s = n > 0 ? 2.0 / (n * n) : 0.0;
+	double n = norm();
+	double s = n > 0 ? 2.0 / (n * n) : 0.0;
 
-	float xs = x() * s;
-	float ys = y() * s;
-	float zs = z() * s;
+	double xs = x() * s;
+	double ys = y() * s;
+	double zs = z() * s;
 
-	float wx = w() * xs;
-	float wy = w() * ys;
-	float wz = w() * zs;
+	double wx = w() * xs;
+	double wy = w() * ys;
+	double wz = w() * zs;
 
-	float xx = x() * xs;
-	float xy = x() * ys;
-	float xz = x() * zs;
+	double xx = x() * xs;
+	double xy = x() * ys;
+	double xz = x() * zs;
 
-	float yy = y() * ys;
-	float yz = y() * zs;
-	float zz = z() * zs;
+	double yy = y() * ys;
+	double yz = y() * zs;
+	double zz = z() * zs;
 
-	float m[3][3];
+	double m[3][3];
 	m[0][0] = 1.0 - (yy + zz);
 	m[1][1] = 1.0 - (xx + zz);
 	m[2][2] = 1.0 - (xx + yy);
@@ -134,8 +154,34 @@ void Quaternion::toRotMatrix(std::vector<float>& rot_matrix_3_3) const
 	m[2][1] = yz + wx;
 	m[1][2] = yz - wx;
 
+	// double yy = 2.0 * y() * y();
+	// double zz = 2.0 * z() * z();
+	// double xx = 2.0 * x() * x();
+	// double xy = 2.0 * x() * y();
+	// double zw = 2.0 * z() * w();
+	// double xz = 2.0 * x() * z();
+	// double yw = 2.0 * y() * w();
+	// double yz = 2.0 * y() * z();
+	// double xw = 2.0 * x() * w();
+
+	// double m[3][3];
+	// // Row 1
+	// m[0][0] = 1.0 - yy - zz;
+	// m[0][1] = xy - zw;
+	// m[0][2] = xz + yw;
+
+	// // Row 2
+	// m[1][0] = xy + zw;
+	// m[1][1] = 1.0 - xx - zz;
+	// m[1][2] = yz - xw;
+
+	// // Row 3
+	// m[2][0] = xz - yw;
+	// m[2][1] = yz + xw;
+	// m[2][2] = 1.0 - xx - yy;
+
 	rot_matrix_3_3.clear();
-	rot_matrix_3_3.resize(9, 0.);
+	rot_matrix_3_3.resize(9, 0.0);
 	for (unsigned int i = 0; i < 3; i++)
 	{
 		rot_matrix_3_3[i * 3] = m[i][0];
@@ -144,24 +190,24 @@ void Quaternion::toRotMatrix(std::vector<float>& rot_matrix_3_3) const
 	}
 }
 
-const float& Quaternion::operator[](size_t index) const
+const double& Quaternion::operator[](size_t index) const
 {
 	return data_[index];
 }
 
-float& Quaternion::operator[](size_t index)
+double& Quaternion::operator[](size_t index)
 {
 	return data_[index];
 }
 
-float Quaternion::norm() const
+double Quaternion::norm() const
 {
-	float n = 0;
+	double n = 0;
 	for (unsigned int i = 0; i < 4; i++)
 	{
 		n += operator[](i) * operator[](i);
 	}
-	return (float)sqrt(n);
+	return (double)sqrt(n);
 }
 
 Quaternion Quaternion::normalized() const
@@ -173,13 +219,13 @@ Quaternion Quaternion::normalized() const
 
 Quaternion& Quaternion::normalize()
 {
-	float len = norm();
+	double len = norm();
 	if (len > 0)
-		*this /= (float)len;
+		*this /= (double)len;
 	return *this;
 }
 
-void Quaternion::operator/=(float x)
+void Quaternion::operator/=(double x)
 {
 	for (unsigned int i = 0; i < 4; ++i)
 	{
@@ -252,37 +298,37 @@ Vector3 Quaternion::rotate(const Vector3& v) const
 	return Vector3(q.x(), q.y(), q.z());
 }
 
-const float& Quaternion::w() const
+const double& Quaternion::w() const
 {
 	return data_[0];
 }
-float& Quaternion::w()
+double& Quaternion::w()
 {
 	return data_[0];
 }
-const float& Quaternion::x() const
+const double& Quaternion::x() const
 {
 	return data_[1];
 }
-float& Quaternion::x()
+double& Quaternion::x()
 {
 	return data_[1];
 }
-const float& Quaternion::y() const
+const double& Quaternion::y() const
 {
 	return data_[2];
 }
-float& Quaternion::y()
+double& Quaternion::y()
 {
 	return data_[2];
 }
-const float& Quaternion::z() const
+const double& Quaternion::z() const
 {
 	return data_[3];
 }
-float& Quaternion::z()
+double& Quaternion::z()
 {
 	return data_[3];
 }
 
-}  // namespace ufomap
+}  // namespace ufomap_math

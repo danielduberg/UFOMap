@@ -16,6 +16,11 @@ struct LineSegment
 	{
 	}
 
+	inline LineSegment(const LineSegment& line_segment)
+		: start(line_segment.start), end(line_segment.end)
+	{
+	}
+
 	inline LineSegment(const Vector3& start, const Vector3& end) : start(start), end(end)
 	{
 	}

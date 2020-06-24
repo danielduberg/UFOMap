@@ -10,13 +10,17 @@ namespace ufomap_geometry
 struct Plane
 {
 	Vector3 normal;
-	float distance;
+	double distance;
 
 	inline Plane() : normal(1.0, 0.0, 0.0)
 	{
 	}
 
-	inline Plane(const Vector3& normal, float distance) : normal(normal), distance(distance)
+	inline Plane(const Plane& plane) : normal(plane.normal), distance(plane.distance)
+	{
+	}
+
+	inline Plane(const Vector3& normal, double distance) : normal(normal), distance(distance)
 	{
 	}
 
