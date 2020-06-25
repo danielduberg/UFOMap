@@ -2193,21 +2193,6 @@ protected:
 
 	void clear(InnerNode<LEAF_NODE>& inner_node, unsigned int current_depth)
 	{
-		if (nullptr == inner_node.children)
-		{
-			return;
-		}
-
-		if (1 < current_depth)
-		{
-			unsigned int child_depth = current_depth - 1;
-			for (InnerNode<LEAF_NODE>& child :
-					 *static_cast<std::array<InnerNode<LEAF_NODE>, 8>*>(inner_node.children))
-			{
-				clear(child, child_depth);
-			}
-		}
-
 		deleteChildren(inner_node, current_depth, true);
 	}
 
