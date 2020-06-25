@@ -279,6 +279,8 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 
 bool OctreeRGB::isNodeCollapsible(const std::array<OccupancyNodeRGB, 8>& children) const
 {
+	return false;
+	
 	// return false;
 	if (!prune_consider_color_)
 	{
@@ -298,6 +300,8 @@ bool OctreeRGB::isNodeCollapsible(const std::array<OccupancyNodeRGB, 8>& childre
 bool OctreeRGB::isNodeCollapsible(
 		const std::array<InnerNode<OccupancyNodeRGB>, 8>& children) const
 {
+	return false;
+
 	// return false;
 	if (!prune_consider_color_)
 	{
