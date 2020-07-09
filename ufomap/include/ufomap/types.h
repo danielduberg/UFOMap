@@ -32,13 +32,13 @@ public:
 	{
 	}
 
-	Point3RGB(uint8_t r, uint8_t g, uint8_t b) : Point3(0, 0, 0), color_(r, g, b)
-	{
-	}
+	// Point3RGB(uint8_t r, uint8_t g, uint8_t b) : Point3(0, 0, 0), color_(r, g, b)
+	// {
+	// }
 
-	Point3RGB(const Color& color) : Point3(0, 0, 0), color_(color)
-	{
-	}
+	// Point3RGB(const Color& color) : Point3(0, 0, 0), color_(color)
+	// {
+	// }
 
 	Point3RGB& operator=(const Point3RGB& rhs)
 	{
@@ -99,9 +99,9 @@ public:
 	{
 	}
 
-	Point3I(double intensity) : Point3(0, 0, 0), intensity_(intensity)
-	{
-	}
+	// Point3I(double intensity) : Point3(0, 0, 0), intensity_(intensity)
+	// {
+	// }
 
 	Point3I& operator=(const Point3I& rhs)
 	{
