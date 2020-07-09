@@ -146,7 +146,7 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 	Node<OccupancyNodeRGB> node = getNode(code, !prune_consider_color_);
 	if (nullptr != node.node && node.node->color != color)
 	{
-		Color color_not_set;
+		// Color color_not_set;
 		// if (node.node->color != color_not_set)
 		// {
 		// 	double node_prob = probability(node.node->logit);
