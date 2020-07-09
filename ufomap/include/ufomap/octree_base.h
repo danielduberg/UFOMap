@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstring>
 #include <fstream>
+#include <future>
 #include <sstream>
 #include <type_traits>
 
@@ -53,7 +54,7 @@ public:
 	// Insertion
 	//
 
-	void insertRay(const Point3& origin, const Point3& end, float max_range = -1,
+	void insertRay(const Point3& origin, const Point3& end, double max_range = -1,
 								 unsigned int depth = 0)
 	{
 		// Free space
@@ -62,7 +63,7 @@ public:
 		integrateHit(end);
 	}
 
-	void insertMissOnRay(const Point3& origin, const Point3& end, float max_range = -1,
+	void insertMissOnRay(const Point3& origin, const Point3& end, double max_range = -1,
 											 unsigned int depth = 0)
 
 	{
@@ -76,7 +77,7 @@ public:
 	}
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloud& cloud,
-												float max_range = -1)
+												double max_range = -1)
 	{
 		computeUpdate(sensor_origin, cloud, max_range);
 
@@ -90,7 +91,7 @@ public:
 	}
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloud& cloud,
-																float max_range = -1, unsigned int n = 0,
+																double max_range = -1, unsigned int n = 0,
 																unsigned int depth = 0)
 	{
 		KeyMap<std::vector<Key>> discrete_map;
@@ -100,11 +101,17 @@ public:
 		KeySet temp;
 		Point3 origin;
 		Point3 end;
-		float distance;
+		double distance;
 		Point3 dir;
 		Key changed_end;
 		Point3 changed_point;
 		Key point_key;
+
+		if (insert_async_handler_[0].valid())
+		{
+			insert_async_handler_[0].wait();
+		}
+
 		for (const Point3& point : cloud)
 		{
 			point_key = coordToKey(static_cast<const Point3&>(point), 0);
@@ -135,12 +142,13 @@ public:
 				changed_end = coordToKey(end, 0);
 				if (changed_point == end)
 				{
-					if (0 == n && 0 != depth)  // TODO: Why 0 == depth? Should it not be 0 !=
-																		 // depth
-					{
-						integrateHit(Code(changed_end));
-					}
-					else if (!indices_.try_emplace(changed_end, prob_hit_log_).second)
+					// if (0 == n && 0 != depth)  // TODO: Why 0 == depth? Should it not be 0 !=
+					// 													 // depth
+					// {
+					// 	integrateHit(Code(changed_end));
+					// }
+					// else
+					if (!indices_.try_emplace(changed_end, prob_hit_log_).second)
 					{
 						continue;
 					}
@@ -172,15 +180,32 @@ public:
 		computeUpdateDiscrete(sensor_origin, discrete, discrete_map, n);
 
 		// Insert
-		for (const auto& [code, value] : indices_)
+		// for (const auto& [code, value] : indices_)
+		// {
+		// 	updateNodeValue(code, value);
+		// }
+		// indices_.clear();
+
+		if (insert_async_handler_[1].valid())
 		{
-			updateNodeValue(code, value);
+			insert_async_handler_[1].wait();
 		}
-		indices_.clear();
+
+		indices_buffer_.swap(indices_);
+
+		insert_async_handler_[0] = std::async(std::launch::async, [this]() {
+			indices_.clear();
+			insert_async_handler_[1] = std::async(std::launch::async, [this]() {
+				for (const auto& [code, value] : indices_buffer_)
+				{
+					updateNodeValue(code, value);
+				}
+			});
+		});
 	}
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloud& cloud,
-												const Pose6& frame_origin, float max_range = -1)
+												const Pose6& frame_origin, double max_range = -1)
 	{
 		PointCloud cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
@@ -188,7 +213,7 @@ public:
 	}
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloud& cloud,
-																const Pose6& frame_origin, float max_range = -1,
+																const Pose6& frame_origin, double max_range = -1,
 																unsigned int n = 0, unsigned int depth = 0)
 	{
 		PointCloud cloud_transformed(cloud);
@@ -201,7 +226,7 @@ public:
 	//
 
 	bool castRay(Point3 origin, Point3 direction, Point3& end, bool ignore_unknown = false,
-							 float max_range = -1, unsigned int depth = 0) const
+							 double max_range = -1, unsigned int depth = 0) const
 	{
 		// TODO: Check so it is correct
 
@@ -245,7 +270,7 @@ public:
 		return isOccupied(current);
 	}
 
-	void computeRay(const Point3& origin, const Point3& end, Ray& ray, float max_range = -1,
+	void computeRay(const Point3& origin, const Point3& end, Ray& ray, double max_range = -1,
 									unsigned int depth = 0) const
 	{
 		KeyRay key_ray;
@@ -256,7 +281,7 @@ public:
 		}
 	}
 
-	void computeRay(Point3 origin, Point3 end, KeyRay& ray, float max_range = -1,
+	void computeRay(Point3 origin, Point3 end, KeyRay& ray, double max_range = -1,
 									unsigned int depth = 0) const
 	{
 		// Source: A Faster Voxel Traversal Algorithm for Ray Tracing
@@ -292,7 +317,7 @@ public:
 	}
 
 	// bool getRayIntersection(const Point3& origin, const Point3& direction,
-	// 												const Point3& center, Point3& intersection, float delta) const
+	// 												const Point3& center, Point3& intersection, double delta) const
 	// {
 	// 	// TODO: Implement
 	// 	return false;
@@ -330,7 +355,7 @@ public:
 		}
 	}
 
-	void clearAreaRadius(const Point3& coord, float radius, unsigned int depth = 0)
+	void clearAreaRadius(const Point3& coord, double radius, unsigned int depth = 0)
 	{
 		// TODO: Implement
 	}
@@ -339,12 +364,12 @@ public:
 	// Set node value
 	//
 
-	Node<LEAF_NODE> setNodeValue(const Node<LEAF_NODE>& node, float logit_value)
+	Node<LEAF_NODE> setNodeValue(const Node<LEAF_NODE>& node, double logit_value)
 	{
 		return setNodeValue(node.code, logit_value);  // TODO: Look at
 	}
 
-	Node<LEAF_NODE> setNodeValue(const Code& code, float logit_value)
+	Node<LEAF_NODE> setNodeValue(const Code& code, double logit_value)
 	{
 		logit_value =
 				std::clamp(logit_value, clamping_thres_min_log_, clamping_thres_max_log_);
@@ -357,18 +382,18 @@ public:
 		return node;
 	}
 
-	Node<LEAF_NODE> setNodeValue(const Key& key, float logit_value)
+	Node<LEAF_NODE> setNodeValue(const Key& key, double logit_value)
 	{
 		return setNodeValue(Code(key), logit_value);
 	}
 
-	Node<LEAF_NODE> setNodeValue(const Point3& coord, float logit_value,
+	Node<LEAF_NODE> setNodeValue(const Point3& coord, double logit_value,
 															 unsigned int depth = 0)
 	{
 		return setNodeValue(coordToKey(coord, depth), logit_value);
 	}
 
-	Node<LEAF_NODE> setNodeValue(float x, float y, float z, float logit_value,
+	Node<LEAF_NODE> setNodeValue(double x, double y, double z, double logit_value,
 															 unsigned int depth = 0)
 	{
 		return setNodeValue(coordToKey(x, y, z, depth), logit_value);
@@ -378,12 +403,12 @@ public:
 	// Update node value
 	//
 
-	Node<LEAF_NODE> updateNodeValue(const Node<LEAF_NODE>& node, float logit_update)
+	Node<LEAF_NODE> updateNodeValue(const Node<LEAF_NODE>& node, double logit_update)
 	{
 		return updateNodeValue(node.code, logit_update);  // TODO: Look at
 	}
 
-	Node<LEAF_NODE> updateNodeValue(const Code& code, float logit_update)
+	Node<LEAF_NODE> updateNodeValue(const Code& code, double logit_update)
 	{
 		Node<LEAF_NODE> node = getNode(code);
 		if ((0 <= logit_update && node.node->logit >= clamping_thres_max_log_) ||
@@ -394,18 +419,18 @@ public:
 		return updateNodeValueRecurs(code, logit_update, root_, depth_levels_).first;
 	}
 
-	Node<LEAF_NODE> updateNodeValue(const Key& key, float logit_update)
+	Node<LEAF_NODE> updateNodeValue(const Key& key, double logit_update)
 	{
 		return updateNodeValue(Code(key), logit_update);
 	}
 
-	Node<LEAF_NODE> updateNodeValue(const Point3& coord, float logit_update,
+	Node<LEAF_NODE> updateNodeValue(const Point3& coord, double logit_update,
 																	unsigned int depth = 0)
 	{
 		return updateNodeValue(coordToKey(coord, depth), logit_update);
 	}
 
-	Node<LEAF_NODE> updateNodeValue(float x, float y, float z, float logit_update,
+	Node<LEAF_NODE> updateNodeValue(double x, double y, double z, double logit_update,
 																	unsigned int depth = 0)
 	{
 		return updateNodeValue(coordToKey(x, y, z, depth), logit_update);
@@ -435,7 +460,7 @@ public:
 		return integrateHit(coordToKey(coord, depth));
 	}
 
-	Node<LEAF_NODE> integrateHit(float x, float y, float z, unsigned int depth = 0)
+	Node<LEAF_NODE> integrateHit(double x, double y, double z, unsigned int depth = 0)
 	{
 		return integrateHit(coordToKey(x, y, z, depth));
 	}
@@ -460,7 +485,7 @@ public:
 		return integrateMiss(coordToKey(coord, depth));
 	}
 
-	Node<LEAF_NODE> integrateMiss(float x, float y, float z, unsigned int depth = 0)
+	Node<LEAF_NODE> integrateMiss(double x, double y, double z, unsigned int depth = 0)
 	{
 		return integrateMiss(coordToKey(x, y, z, depth));
 	}
@@ -469,7 +494,7 @@ public:
 	// Coordinate <-> key
 	//
 
-	inline unsigned int coordToKey(float coord, unsigned int depth = 0) const
+	inline unsigned int coordToKey(double coord, unsigned int depth = 0) const
 	{
 		int key_value = (int)floor(resolution_factor_ * coord);
 		if (0 == depth)
@@ -485,7 +510,7 @@ public:
 							 coordToKey(coord[2], depth), depth);
 	}
 
-	inline Key coordToKey(float x, float y, float z, unsigned int depth = 0) const
+	inline Key coordToKey(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return Key(coordToKey(x, depth), coordToKey(y, depth), coordToKey(z, depth), depth);
 	}
@@ -501,7 +526,7 @@ public:
 		return true;
 	}
 
-	inline bool coordToKeyChecked(float x, float y, float z, Key& key,
+	inline bool coordToKeyChecked(double x, double y, double z, Key& key,
 																unsigned int depth = 0) const
 	{
 		if (!inBBX(x, y, z))
@@ -512,15 +537,15 @@ public:
 		return true;
 	}
 
-	inline float keyToCoord(KeyType key, unsigned int depth = 0) const
+	inline double keyToCoord(KeyType key, unsigned int depth = 0) const
 	{
 		if (depth_levels_ == depth)
 		{
 			return 0.0;
 		}
 
-		// TODO: double or float?
-		float divider = float(1 << depth);
+		// TODO: double or double?
+		double divider = double(1 << depth);
 		return (floor((double(key) - double(max_value_)) / divider) + 0.5) *
 					 getNodeSize(depth);
 	}
@@ -571,17 +596,17 @@ public:
 		return isOccupied(coordToKey(coord, depth));
 	}
 
-	bool isOccupied(float x, float y, float z, unsigned int depth = 0) const
+	bool isOccupied(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return isOccupied(coordToKey(x, y, z, depth));
 	}
 
-	bool isOccupied(float probability) const
+	bool isOccupied(double probability) const
 	{
 		return isOccupied(logit(probability));
 	}
 
-	bool isOccupiedLog(float logit) const
+	bool isOccupiedLog(double logit) const
 	{
 		return occupancy_thres_log_ < logit;
 	}
@@ -606,17 +631,17 @@ public:
 		return isFree(coordToKey(coord, depth));
 	}
 
-	bool isFree(float x, float y, float z, unsigned int depth = 0) const
+	bool isFree(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return isFree(coordToKey(x, y, z, depth));
 	}
 
-	bool isFree(float probability) const
+	bool isFree(double probability) const
 	{
 		return isFree(logit(probability));
 	}
 
-	bool isFreeLog(float logit) const
+	bool isFreeLog(double logit) const
 	{
 		return free_thres_log_ > logit;
 	}
@@ -641,17 +666,17 @@ public:
 		return isUnknown(coordToKey(coord, depth));
 	}
 
-	bool isUnknown(float x, float y, float z, unsigned int depth = 0) const
+	bool isUnknown(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return isUnknown(coordToKey(x, y, z, depth));
 	}
 
-	bool isUnknown(float probability) const
+	bool isUnknown(double probability) const
 	{
 		return isUnknown(logit(probability));
 	}
 
-	bool isUnknownLog(float logit) const
+	bool isUnknownLog(double logit) const
 	{
 		return free_thres_log_ <= logit && occupancy_thres_log_ >= logit;
 	}
@@ -676,7 +701,7 @@ public:
 		return isOccupied(coord, depth);
 	}
 
-	bool containsOccupied(float x, float y, float z, unsigned int depth = 0) const
+	bool containsOccupied(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return isOccupied(x, y, z, depth);
 	}
@@ -708,7 +733,7 @@ public:
 		return containsFree(coordToKey(coord, depth));
 	}
 
-	bool containsFree(float x, float y, float z, unsigned int depth = 0) const
+	bool containsFree(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return containsFree(coordToKey(x, y, z, depth));
 	}
@@ -740,7 +765,7 @@ public:
 		return containsUnknown(coordToKey(coord, depth));
 	}
 
-	bool containsUnknown(float x, float y, float z, unsigned int depth = 0) const
+	bool containsUnknown(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return containsUnknown(coordToKey(x, y, z, depth));
 	}
@@ -841,7 +866,7 @@ public:
 		return inBBX(coord.x(), coord.y(), coord.z());
 	}
 
-	bool inBBX(float x, float y, float z) const
+	bool inBBX(double x, double y, double z) const
 	{
 		Point3 min = isBBXLimitEnabled() ? bbx_min_ : getMin();
 		Point3 max = isBBXLimitEnabled() ? bbx_max_ : getMax();
@@ -943,94 +968,94 @@ public:
 	// Sensor model functions
 	//
 
-	float logit(const Node<LEAF_NODE>& node) const
+	double logit(const Node<LEAF_NODE>& node) const
 	{
 		return node.node->logit;
 	}
 
-	float logit(float probability) const
+	double logit(double probability) const
 	{
 		return std::log(probability / (1.0 - probability));
 	}
 
-	float probability(const Node<LEAF_NODE>& node) const
+	double probability(const Node<LEAF_NODE>& node) const
 	{
 		return probability(node.node->logit);
 	}
 
-	float probability(float logit) const
+	double probability(double logit) const
 	{
 		return 1.0 - (1.0 / (1.0 + std::exp(logit)));
 	}
 
-	float getOccupancyThres() const
+	double getOccupancyThres() const
 	{
 		return probability(occupancy_thres_log_);
 	}
 
-	float getOccupancyThresLog() const
+	double getOccupancyThresLog() const
 	{
 		return occupancy_thres_log_;
 	}
 
-	float getFreeThres() const
+	double getFreeThres() const
 	{
 		return probability(free_thres_log_);
 	}
 
-	float getFreeThresLog() const
+	double getFreeThresLog() const
 	{
 		return free_thres_log_;
 	}
 
-	float getProbHit() const
+	double getProbHit() const
 	{
 		return probability(prob_hit_log_);
 	}
 
-	float getProbHitLog() const
+	double getProbHitLog() const
 	{
 		return prob_hit_log_;
 	}
 
-	float getProbMiss() const
+	double getProbMiss() const
 	{
 		return probability(prob_miss_log_);
 	}
 
-	float getProbMissLog() const
+	double getProbMissLog() const
 	{
 		return prob_miss_log_;
 	}
 
-	float getClampingThresMin() const
+	double getClampingThresMin() const
 	{
 		return probability(clamping_thres_min_log_);
 	}
 
-	float getClampingThresMinLog() const
+	double getClampingThresMinLog() const
 	{
 		return clamping_thres_min_log_;
 	}
 
-	float getClampingThresMax() const
+	double getClampingThresMax() const
 	{
 		return probability(clamping_thres_max_log_);
 	}
 
-	float getClampingThresMaxLog() const
+	double getClampingThresMaxLog() const
 	{
 		return clamping_thres_max_log_;
 	}
 
 	// TODO: Should add a warning that these are very computational expensive to call since
 	// the whole tree has to be updated
-	void setOccupancyThres(float probability)
+	void setOccupancyThres(double probability)
 	{
 		setOccupancyThresLog(logit(probability));
 	}
 
-	void setOccupancyThresLog(float logit)
+	void setOccupancyThresLog(double logit)
 	{
 		occupancy_thres_log_ = logit;
 		// TODO: Update tree
@@ -1038,53 +1063,53 @@ public:
 
 	// TODO: Should add a warning that these are very computational expensive to call since
 	// the whole tree has to be updated
-	void setFreeThres(float probability)
+	void setFreeThres(double probability)
 	{
 		setFreeThresLog(logit(probability));
 	}
 
-	void setFreeThresLog(float logit)
+	void setFreeThresLog(double logit)
 	{
 		free_thres_log_ = logit;
 		// TODO: Update tree
 	}
 
-	void setProbHit(float probability)
+	void setProbHit(double probability)
 	{
 		setProbHitLog(logit(probability));
 	}
 
-	void setProbHitLog(float logit)
+	void setProbHitLog(double logit)
 	{
 		prob_hit_log_ = logit;
 	}
 
-	void setProbMiss(float probability)
+	void setProbMiss(double probability)
 	{
 		setProbMissLog(logit(prob_hit_log_));
 	}
 
-	void setProbMissLog(float logit)
+	void setProbMissLog(double logit)
 	{
 		prob_miss_log_ = logit;
 	}
 
-	void setClampingThresMin(float probability)
+	void setClampingThresMin(double probability)
 	{
 		setClampingThresMinLog(logit(probability));
 	}
 
-	void setClampingThresMinLog(float logit)
+	void setClampingThresMinLog(double logit)
 	{
 		clamping_thres_min_log_ = logit;
 	}
 
-	void setClampingThresMax(float probability)
+	void setClampingThresMax(double probability)
 	{
 		setClampingThresMaxLog(logit(probability));
 	}
 
-	void setClampingThresMaxLog(float logit)
+	void setClampingThresMaxLog(double logit)
 	{
 		clamping_thres_max_log_ = logit;
 	}
@@ -1199,7 +1224,7 @@ public:
 				 it != end; ++it)
 		{
 			Point3 center = it.getCenter();
-			float half_size = it.getHalfSize();
+			double half_size = it.getHalfSize();
 			min_coord.x() = std::min(min_coord.x(), center.x() - half_size);
 			min_coord.y() = std::min(min_coord.y(), center.y() - half_size);
 			min_coord.z() = std::min(min_coord.z(), center.z() - half_size);
@@ -1219,7 +1244,7 @@ public:
 				 it != end; ++it)
 		{
 			Point3 center = it.getCenter();
-			float half_size = it.getHalfSize();
+			double half_size = it.getHalfSize();
 			max_coord.x() = std::max(max_coord.x(), center.x() + half_size);
 			max_coord.y() = std::max(max_coord.y(), center.y() + half_size);
 			max_coord.z() = std::max(max_coord.z(), center.z() + half_size);
@@ -1232,7 +1257,7 @@ public:
 	 */
 	Point3 getMin() const
 	{
-		float half_size = -getNodeHalfSize(depth_levels_);
+		double half_size = -getNodeHalfSize(depth_levels_);
 		return Point3(half_size, half_size, half_size);
 	}
 
@@ -1241,7 +1266,7 @@ public:
 	 */
 	Point3 getMax() const
 	{
-		float half_size = getNodeHalfSize(depth_levels_);
+		double half_size = getNodeHalfSize(depth_levels_);
 		return Point3(half_size, half_size, half_size);
 	}
 
@@ -1297,7 +1322,7 @@ public:
 		clear(resolution_, depth_levels_);
 	}
 
-	void clear(float resolution, unsigned int depth_levels)
+	void clear(double resolution, unsigned int depth_levels)
 	{
 		if (21 < depth_levels)
 		{
@@ -1380,17 +1405,17 @@ public:
 		return getNode(coordToKey(coord, depth));
 	}
 
-	Node<LEAF_NODE> getNode(float x, float y, float z, unsigned int depth = 0) const
+	Node<LEAF_NODE> getNode(double x, double y, double z, unsigned int depth = 0) const
 	{
 		return getNode(coordToKey(x, y, z, depth));
 	}
 
-	float getNodeSize(unsigned int depth) const
+	double getNodeSize(unsigned int depth) const
 	{
 		return nodes_sizes_[depth];
 	}
 
-	float getNodeHalfSize(unsigned int depth) const
+	double getNodeHalfSize(unsigned int depth) const
 	{
 		return nodes_half_sizes_[depth];
 	}
@@ -1426,7 +1451,7 @@ public:
 		return depth_levels_;
 	}
 
-	float getResolution() const
+	double getResolution() const
 	{
 		return resolution_;
 	}
@@ -1475,10 +1500,10 @@ public:
 
 		std::string id;
 		size_t size;
-		float res;
+		double res;
 		unsigned int depth_levels;
-		float occupancy_thres;
-		float free_thres;
+		double occupancy_thres;
+		double free_thres;
 		bool compressed;
 		int data_size;
 		int compressed_data_size;
@@ -1507,8 +1532,8 @@ public:
 		// TODO: Check size?
 	}
 
-	bool readData(std::istream& s, float resolution, unsigned int depth_levels,
-								float occupancy_thres, float free_thres, bool binary = false,
+	bool readData(std::istream& s, double resolution, unsigned int depth_levels,
+								double occupancy_thres, double free_thres, bool binary = false,
 								bool from_octomap = false)
 	{
 		if (binary && !binarySupport())
@@ -1555,8 +1580,8 @@ public:
 		return true;
 	}
 
-	bool readDataCompressed(std::istream& s, float resolution, unsigned int depth_levels,
-													float occupancy_thres, float free_thres, int data_size,
+	bool readDataCompressed(std::istream& s, double resolution, unsigned int depth_levels,
+													double occupancy_thres, double free_thres, int data_size,
 													int compressed_data_size, bool binary = false,
 													bool from_octomap = false)
 	{
@@ -1697,9 +1722,9 @@ public:
 	}
 
 protected:
-	OctreeBase(float resolution, unsigned int depth_levels, bool automatic_pruning,
-						 float occupancy_thres, float free_thres, float prob_hit, float prob_miss,
-						 float clamping_thres_min, float clamping_thres_max)
+	OctreeBase(double resolution, unsigned int depth_levels, bool automatic_pruning,
+						 double occupancy_thres, double free_thres, double prob_hit, double prob_miss,
+						 double clamping_thres_min, double clamping_thres_max)
 		: resolution_(resolution)
 		, resolution_factor_(1.0 / resolution)
 		, depth_levels_(depth_levels)
@@ -1729,6 +1754,8 @@ protected:
 
 		indices_.max_load_factor(0.8);
 		indices_.reserve(100003);
+		indices_buffer_.max_load_factor(0.8);
+		indices_buffer_.reserve(100003);
 		// discretize_.max_load_factor(0.8);
 		// discretize_.reserve(10007);
 	}
@@ -1738,7 +1765,7 @@ protected:
 	//
 
 	std::pair<Node<LEAF_NODE>, bool> updateNodeValueRecurs(const Code& code,
-																												 float logit_value,
+																												 double logit_value,
 																												 LEAF_NODE& node,
 																												 unsigned int current_depth,
 																												 bool set_value = false)
@@ -1960,7 +1987,7 @@ protected:
 	// BBX
 	//
 
-	bool getIntersection(float d_1, float d_2, const Point3& p_1, const Point3& p_2,
+	bool getIntersection(double d_1, double d_2, const Point3& p_1, const Point3& p_2,
 											 Point3* hit) const
 	{
 		if (0 <= (d_1 * d_2))
@@ -2233,7 +2260,7 @@ protected:
 	}
 
 	void computeUpdate(const Point3& sensor_origin, const PointCloud& cloud,
-										 float max_range)
+										 double max_range)
 	{
 		// Source: A Faster Voxel Traversal Algorithm for Ray Tracing
 
@@ -2241,7 +2268,7 @@ protected:
 		{
 			Point3 origin = sensor_origin;
 			Point3 end = cloud[i] - origin;
-			float distance = end.norm();
+			double distance = end.norm();
 			Point3 dir = end / distance;
 			if (0 <= max_range && distance > max_range)
 			{
@@ -2292,7 +2319,7 @@ protected:
 		{
 			Point3 origin = sensor_origin;
 			Point3 end = keyToCoord(key) - sensor_origin;
-			float distance = end.norm();
+			double distance = end.norm();
 			Point3 dir = end / distance;
 			end = origin + (dir * distance);
 
@@ -2317,14 +2344,14 @@ protected:
 			}
 			else
 			{
-				float node_size = getNodeSize(key.getDepth());
+				double node_size = getNodeSize(key.getDepth());
 				int num_steps = (distance / node_size) - n;
 
 				Point3 current = origin;
 				Point3 last = current;
 				Key current_key = coordToKey(current, key.getDepth());
 				int step = 0;
-				float value = prob_miss_log_ / float((2.0 * key.getDepth()) + 1);
+				double value = prob_miss_log_ / double((2.0 * key.getDepth()) + 1);
 				while (current_key != key && step <= num_steps)
 				{
 					last = current;
@@ -2380,13 +2407,13 @@ protected:
 			{
 				t_delta[i] = getNodeSize(depth) / std::fabs(direction_normalized[i]);
 
-				voxel_border[i] += (float)(step[i] * getNodeHalfSize(depth));
+				voxel_border[i] += (double)(step[i] * getNodeHalfSize(depth));
 				t_max[i] = (voxel_border[i] - origin[i]) / direction_normalized[i];
 			}
 			else
 			{
-				t_delta[i] = std::numeric_limits<float>::max();
-				t_max[i] = std::numeric_limits<float>::max();
+				t_delta[i] = std::numeric_limits<double>::max();
+				t_max[i] = std::numeric_limits<double>::max();
 			}
 		}
 	}
@@ -2400,9 +2427,9 @@ protected:
 		t_max[advance_dim] += t_delta[advance_dim];
 	}
 
-	float getMaxChildLogit(const std::array<InnerNode<LEAF_NODE>, 8>& children) const
+	double getMaxChildLogit(const std::array<InnerNode<LEAF_NODE>, 8>& children) const
 	{
-		float max = std::numeric_limits<float>::lowest();  // TODO: Check this one, maybe
+		double max = std::numeric_limits<double>::lowest();  // TODO: Check this one, maybe
 																											 // should be lowest()?
 		for (const LEAF_NODE& child : children)
 		{
@@ -2414,9 +2441,9 @@ protected:
 		return max;
 	}
 
-	float getMaxChildLogit(const std::array<LEAF_NODE, 8>& children) const
+	double getMaxChildLogit(const std::array<LEAF_NODE, 8>& children) const
 	{
-		float max = children[0].logit;  // std::numeric_limits<float>::lowest();  // TODO:
+		double max = children[0].logit;  // std::numeric_limits<double>::lowest();  // TODO:
 																		// Check this one, maybe should be lowest()?
 		for (const LEAF_NODE& child : children)
 		{
@@ -2428,9 +2455,9 @@ protected:
 		return max;
 	}
 
-	float getMeanChildLogit(const std::array<InnerNode<LEAF_NODE>, 8>& children) const
+	double getMeanChildLogit(const std::array<InnerNode<LEAF_NODE>, 8>& children) const
 	{
-		float mean = 0;
+		double mean = 0;
 		int num = 0;
 		for (const LEAF_NODE& child : children)
 		{
@@ -2444,9 +2471,9 @@ protected:
 		return logit(mean);
 	}
 
-	float getMeanChildLogit(const std::array<LEAF_NODE, 8>& children) const
+	double getMeanChildLogit(const std::array<LEAF_NODE, 8>& children) const
 	{
-		float mean = 0;
+		double mean = 0;
 		int num = 0;
 		for (const LEAF_NODE& child : children)
 		{
@@ -2502,8 +2529,8 @@ protected:
 		}
 	}
 
-	bool readHeader(std::istream& s, std::string& id, size_t& size, float& res,
-									unsigned int& depth_levels, float& occupancy_thres, float& free_thres,
+	bool readHeader(std::istream& s, std::string& id, size_t& size, double& res,
+									unsigned int& depth_levels, double& occupancy_thres, double& free_thres,
 									bool& compressed, int& data_size, int& compressed_data_size,
 									bool is_ufomap = true)
 	{
@@ -2646,8 +2673,8 @@ protected:
 	}
 
 	bool readNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
-											 unsigned int current_depth, float occupancy_thres_log,
-											 float free_thres_log, bool from_octomap = false)
+											 unsigned int current_depth, double occupancy_thres_log,
+											 double free_thres_log, bool from_octomap = false)
 	{
 		static_cast<LEAF_NODE&>(node).readData(s, occupancy_thres_log, free_thres_log,
 																					 from_octomap);
@@ -2688,7 +2715,7 @@ protected:
 
 	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<LEAF_NODE>& node,
 																		 unsigned int current_depth,
-																		 float occupancy_thres_log, float free_thres_log,
+																		 double occupancy_thres_log, double free_thres_log,
 																		 bool from_octomap = false)
 	{
 		return false;
@@ -2742,18 +2769,18 @@ protected:
 	}
 
 protected:
-	float resolution_;           // The voxel size of the leaf nodes
-	float resolution_factor_;    // Reciprocal of the resolution
+	double resolution_;           // The voxel size of the leaf nodes
+	double resolution_factor_;    // Reciprocal of the resolution
 	unsigned int depth_levels_;  // The maximum depth of the octree
 	unsigned int max_value_;     // The maximum coordinate value the octree can store
 
 	// Sensor model
-	float occupancy_thres_log_;     // Threshold for occupancy
-	float free_thres_log_;          // Threshold for free
-	float prob_hit_log_;            // Logodds probability of hit
-	float prob_miss_log_;           // Logodds probability of miss
-	float clamping_thres_min_log_;  // Min logodds value
-	float clamping_thres_max_log_;  // Max logodds value
+	double occupancy_thres_log_;     // Threshold for occupancy
+	double free_thres_log_;          // Threshold for free
+	double prob_hit_log_;            // Logodds probability of hit
+	double prob_miss_log_;           // Logodds probability of miss
+	double clamping_thres_min_log_;  // Min logodds value
+	double clamping_thres_max_log_;  // Max logodds value
 
 	// Bounding box
 	bool bbx_limit_enabled_ = false;  // Use bounding box for queries?
@@ -2769,8 +2796,8 @@ protected:
 
 	// The root of the octree
 	InnerNode<LEAF_NODE> root_;
-	std::vector<float> nodes_sizes_;
-	std::vector<float> nodes_half_sizes_;
+	std::vector<double> nodes_sizes_;
+	std::vector<double> nodes_half_sizes_;
 
 	// Automatic pruning
 	bool automatic_pruning_enabled_ = true;
@@ -2781,7 +2808,9 @@ protected:
 	size_t num_leaf_nodes_ = 0;
 
 	// Defined here for speedup
-	CodeMap<float> indices_;  // Used in insertPointCloud
+	std::array<std::future<void>, 2> insert_async_handler_;
+	CodeMap<double> indices_;         // Used in insertPointCloud
+	CodeMap<double> indices_buffer_;  // Used in insertPointCloud
 
 	// File headers
 	inline static const std::string FILE_HEADER = "# UFOMap octree file";

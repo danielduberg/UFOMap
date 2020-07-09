@@ -4,9 +4,9 @@
 
 namespace ufomap
 {
-Octree::Octree(float resolution, unsigned int depth_levels, bool automatic_pruning,
-							 float occupancy_thres, float free_thres, float prob_hit, float prob_miss,
-							 float clamping_thres_min, float clamping_thres_max)
+Octree::Octree(double resolution, unsigned int depth_levels, bool automatic_pruning,
+							 double occupancy_thres, double free_thres, double prob_hit, double prob_miss,
+							 double clamping_thres_min, double clamping_thres_max)
 	: OctreeBase(resolution, depth_levels, automatic_pruning, occupancy_thres, free_thres,
 							 prob_hit, prob_miss, clamping_thres_min, clamping_thres_max)
 {
@@ -37,8 +37,8 @@ Octree::Octree(const Octree& other)
 //
 
 bool Octree::readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
-																	 unsigned int current_depth, float occupancy_thres_log,
-																	 float free_thres_log, bool from_octomap)
+																	 unsigned int current_depth, double occupancy_thres_log,
+																	 double free_thres_log, bool from_octomap)
 {
 	std::bitset<8> children_data_1;
 	std::bitset<8> children_data_2;

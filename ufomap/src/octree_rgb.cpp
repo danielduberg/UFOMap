@@ -8,10 +8,10 @@ namespace ufomap
 // Constructors and destructors
 //
 
-OctreeRGB::OctreeRGB(float resolution, unsigned int depth_levels, bool automatic_pruning,
-										 bool prune_consider_color, float occupancy_thres, float free_thres,
-										 float prob_hit, float prob_miss, float clamping_thres_min,
-										 float clamping_thres_max)
+OctreeRGB::OctreeRGB(double resolution, unsigned int depth_levels, bool automatic_pruning,
+										 bool prune_consider_color, double occupancy_thres, double free_thres,
+										 double prob_hit, double prob_miss, double clamping_thres_min,
+										 double clamping_thres_max)
 	: OctreeBase(resolution, depth_levels, automatic_pruning, occupancy_thres, free_thres,
 							 prob_hit, prob_miss, clamping_thres_min, clamping_thres_max)
 	, prune_consider_color_(prune_consider_color)
@@ -40,7 +40,7 @@ OctreeRGB::OctreeRGB(const OctreeRGB& other)
 //
 
 void OctreeRGB::insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
-																 float max_range)
+																 double max_range)
 {
 	PointCloud no_color_cloud;
 
@@ -68,7 +68,7 @@ void OctreeRGB::insertPointCloud(const Point3& sensor_origin, const PointCloudRG
 }
 
 void OctreeRGB::insertPointCloudDiscrete(const Point3& sensor_origin,
-																				 const PointCloudRGB& cloud, float max_range,
+																				 const PointCloudRGB& cloud, double max_range,
 																				 unsigned int n, unsigned int depth)
 {
 	PointCloud no_color_cloud;
@@ -147,29 +147,29 @@ Node<OccupancyNodeRGB> OctreeRGB::integrateColor(const Code& code, Color color)
 	if (nullptr != node.node && node.node->color != color)
 	{
 		Color color_not_set;
-		if (node.node->color != color_not_set)
-		{
-			double node_prob = probability(node.node->logit);
-			double node_prob_inv = 0.99 - node_prob;
+		// if (node.node->color != color_not_set)
+		// {
+		// 	double node_prob = probability(node.node->logit);
+		// 	double node_prob_inv = 0.99 - node_prob;
 
-			double node_color_r = static_cast<double>(node.node->color.r);
-			double node_color_g = static_cast<double>(node.node->color.g);
-			double node_color_b = static_cast<double>(node.node->color.b);
+		// 	double node_color_r = static_cast<double>(node.node->color.r);
+		// 	double node_color_g = static_cast<double>(node.node->color.g);
+		// 	double node_color_b = static_cast<double>(node.node->color.b);
 
-			double color_r = static_cast<double>(color.r);
-			double color_g = static_cast<double>(color.g);
-			double color_b = static_cast<double>(color.b);
+		// 	double color_r = static_cast<double>(color.r);
+		// 	double color_g = static_cast<double>(color.g);
+		// 	double color_b = static_cast<double>(color.b);
 
-			double r = std::sqrt(((node_color_r * node_color_r) * node_prob) +
-													 ((color_r * color_r) * node_prob_inv));
-			double g = std::sqrt(((node_color_g * node_color_g) * node_prob) +
-													 ((color_g * color_g) * node_prob_inv));
-			double b = std::sqrt(((node_color_b * node_color_b) * node_prob) +
-													 ((color_b * color_b) * node_prob_inv));
+		// 	double r = std::sqrt(((node_color_r * node_color_r) * node_prob) +
+		// 											 ((color_r * color_r) * node_prob_inv));
+		// 	double g = std::sqrt(((node_color_g * node_color_g) * node_prob) +
+		// 											 ((color_g * color_g) * node_prob_inv));
+		// 	double b = std::sqrt(((node_color_b * node_color_b) * node_prob) +
+		// 											 ((color_b * color_b) * node_prob_inv));
 
-			node = setNodeColorRecurs(code, Color(r, g, b), root_, depth_levels_).first;
-		}
-		else
+		// 	node = setNodeColorRecurs(code, Color(r, g, b), root_, depth_levels_).first;
+		// }
+		// else
 		{
 			return setNodeColorRecurs(code, color, root_, depth_levels_).first;
 		}
@@ -280,7 +280,7 @@ OctreeRGB::setNodeColorRecurs(const Code& code, const Color& color,
 bool OctreeRGB::isNodeCollapsible(const std::array<OccupancyNodeRGB, 8>& children) const
 {
 	return false;
-	
+
 	// return false;
 	if (!prune_consider_color_)
 	{

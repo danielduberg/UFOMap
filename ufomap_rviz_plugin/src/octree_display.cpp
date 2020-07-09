@@ -1,9 +1,7 @@
-#include <ufomap_rviz_plugin/octree_display.h>
-
+#include <rviz/properties/ros_topic_property.h>
 #include <ufomap_msgs/conversions.h>
 #include <ufomap_ros/conversions.h>
-
-#include <rviz/properties/ros_topic_property.h>
+#include <ufomap_rviz_plugin/octree_display.h>
 
 #include <numeric>
 
@@ -155,8 +153,8 @@ void OctreeDisplay::update(float wall_dt, float ros_dt)
 
 				for (int i = 0; i < 3; ++i)
 				{
-					min_value[i] = std::max(min_value[i], min_bbx[i]);
-					max_value[i] = std::min(max_value[i], max_bbx[i]);
+					min_value[i] = std::max(min_value[i], static_cast<double>(min_bbx[i]));
+					max_value[i] = std::min(max_value[i], static_cast<double>(max_bbx[i]));
 				}
 			}
 

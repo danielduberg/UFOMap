@@ -78,22 +78,22 @@ public:
 		return tree_->containsUnknown(stack_.top());
 	}
 
-	float getProbability() const
+	double getProbability() const
 	{
 		return tree_->probability(stack_.top());
 	}
 
-	float getLogit() const
+	double getLogit() const
 	{
 		return tree_->logit(stack_.top());
 	}
 
-	float getSize() const
+	double getSize() const
 	{
 		return tree_->getNodeSize(stack_.top().getDepth());
 	}
 
-	float getHalfSize() const
+	double getHalfSize() const
 	{
 		return tree_->getNodeHalfSize(stack_.top().getDepth());
 	}
@@ -108,15 +108,15 @@ public:
 		return tree_->keyToCoord(stack_.top().code.toKey());
 	}
 
-	float getX() const
+	double getX() const
 	{
 		return tree_->keyToCoord(stack_.top().code.toKey(0), getDepth());
 	}
-	float getY() const
+	double getY() const
 	{
 		return tree_->keyToCoord(stack_.top().code.toKey(1), getDepth());
 	}
-	float getZ() const
+	double getZ() const
 	{
 		return tree_->keyToCoord(stack_.top().code.toKey(2), getDepth());
 	}

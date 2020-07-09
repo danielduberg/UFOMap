@@ -28,8 +28,8 @@ struct OccupancyNode
 	 * @param to_octomap Whether to write data in a UFOMap format or OctoMap format
 	 * @return std::ostream&
 	 */
-	std::ostream& writeData(std::ostream& s, float occupancy_thres_log,
-													float free_thres_log, bool to_octomap = false) const
+	std::ostream& writeData(std::ostream& s, double occupancy_thres_log,
+													double free_thres_log, bool to_octomap = false) const
 	{
 		if (to_octomap)
 		{
@@ -52,7 +52,7 @@ struct OccupancyNode
 	 * format
 	 * @return std::istream&
 	 */
-	std::istream& readData(std::istream& s, float occupancy_thres_log, float free_thres_log,
+	std::istream& readData(std::istream& s, double occupancy_thres_log, double free_thres_log,
 												 bool from_octomap = false)
 	{
 		if (from_octomap)
@@ -86,8 +86,8 @@ struct OccupancyNodeRGB : OccupancyNode
 	 * @param to_octomap Whether to write data in a UFOMap format or OctoMap format
 	 * @return std::ostream&
 	 */
-	std::ostream& writeData(std::ostream& s, float occupancy_thres_log,
-													float free_thres_log, bool to_octomap = false) const
+	std::ostream& writeData(std::ostream& s, double occupancy_thres_log,
+													double free_thres_log, bool to_octomap = false) const
 	{
 		OccupancyNode::writeData(s, occupancy_thres_log, free_thres_log, to_octomap);
 		if (logit > occupancy_thres_log || to_octomap)
@@ -106,7 +106,7 @@ struct OccupancyNodeRGB : OccupancyNode
 	 * format
 	 * @return std::istream&
 	 */
-	std::istream& readData(std::istream& s, float occupancy_thres_log, float free_thres_log,
+	std::istream& readData(std::istream& s, double occupancy_thres_log, double free_thres_log,
 												 bool from_octomap = false)
 	{
 		OccupancyNode::readData(s, occupancy_thres_log, free_thres_log, from_octomap);
@@ -135,8 +135,8 @@ struct OccupancyNodeIntensity : OccupancyNode
 	 * @param to_octomap Whether to write data in a UFOMap format or OctoMap format
 	 * @return std::ostream&
 	 */
-	std::ostream& writeData(std::ostream& s, float occupancy_thres_log,
-													float free_thres_log, bool to_octomap = false) const
+	std::ostream& writeData(std::ostream& s, double occupancy_thres_log,
+													double free_thres_log, bool to_octomap = false) const
 	{
 		OccupancyNode::writeData(s, occupancy_thres_log, free_thres_log, to_octomap);
 		if (logit > occupancy_thres_log || to_octomap)
@@ -155,7 +155,7 @@ struct OccupancyNodeIntensity : OccupancyNode
 	 * format
 	 * @return std::istream&
 	 */
-	std::istream& readData(std::istream& s, float occupancy_thres_log, float free_thres_log,
+	std::istream& readData(std::istream& s, double occupancy_thres_log, double free_thres_log,
 												 bool from_octomap = false)
 	{
 		OccupancyNode::readData(s, occupancy_thres_log, free_thres_log, from_octomap);

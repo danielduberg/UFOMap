@@ -1,7 +1,6 @@
+#include <sensor_msgs/point_cloud2_iterator.h>
 #include <ufomap/types.h>
 #include <ufomap_ros/conversions.h>
-
-#include <sensor_msgs/point_cloud2_iterator.h>
 
 // TODO: Add support for intensity?
 
@@ -169,9 +168,9 @@ void fromUfomap(const PointCloudRGB& cloud_in, sensor_msgs::PointCloud2::Ptr clo
 		*iter_x = cloud_in[i][0];
 		*iter_y = cloud_in[i][1];
 		*iter_z = cloud_in[i][2];
-		iter_rgb[0] = cloud_in[i].getColor().r;
+		iter_rgb[2] = cloud_in[i].getColor().r;
 		iter_rgb[1] = cloud_in[i].getColor().g;
-		iter_rgb[2] = cloud_in[i].getColor().b;
+		iter_rgb[0] = cloud_in[i].getColor().b;
 	}
 }
 

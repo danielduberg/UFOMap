@@ -27,11 +27,11 @@ public:
 	 * @param clamping_thres_min
 	 * @param clamping_thres_max
 	 */
-	OctreeRGB(float resolution = 0.1, unsigned int depth_levels = 16,
+	OctreeRGB(double resolution = 0.1, unsigned int depth_levels = 16,
 						bool automatic_pruning = true, bool prune_consider_color = true,
-						float occupancy_thres = 0.5, float free_thres = 0.5, float prob_hit = 0.7,
-						float prob_miss = 0.4, float clamping_thres_min = 0.1192,
-						float clamping_thres_max = 0.971);
+						double occupancy_thres = 0.5, double free_thres = 0.5, double prob_hit = 0.7,
+						double prob_miss = 0.4, double clamping_thres_min = 0.1192,
+						double clamping_thres_max = 0.971);
 
 	OctreeRGB(const std::string& filename);
 
@@ -69,14 +69,14 @@ public:
 	//
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
-												float max_range = -1);
+												double max_range = -1);
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloudRGB& cloud,
-																float max_range = -1, unsigned int n = 0,
+																double max_range = -1, unsigned int n = 0,
 																unsigned int depth = 0);
 
 	void insertPointCloud(const Point3& sensor_origin, const PointCloudRGB& cloud,
-												const Pose6& frame_origin, float max_range = -1)
+												const Pose6& frame_origin, double max_range = -1)
 	{
 		PointCloudRGB cloud_transformed(cloud);
 		cloud_transformed.transform(frame_origin);
@@ -84,7 +84,7 @@ public:
 	}
 
 	void insertPointCloudDiscrete(const Point3& sensor_origin, const PointCloudRGB& cloud,
-																const Pose6& frame_origin, float max_range = -1,
+																const Pose6& frame_origin, double max_range = -1,
 																unsigned int n = 0, unsigned int depth = 0)
 	{
 		PointCloudRGB cloud_transformed(cloud);
@@ -114,7 +114,7 @@ public:
 		return setNodeColor(coordToKey(coord, depth), color);
 	}
 
-	Node<OccupancyNodeRGB> setNodeColor(float x, float y, float z, Color color,
+	Node<OccupancyNodeRGB> setNodeColor(double x, double y, double z, Color color,
 																			unsigned int depth = 0)
 	{
 		return setNodeColor(coordToKey(x, y, z, depth), color);
@@ -142,7 +142,7 @@ public:
 		return setNodeColor(coord, Color(r, g, b), depth);
 	}
 
-	Node<OccupancyNodeRGB> setNodeColor(float x, float y, float z, uint8_t r, uint8_t g,
+	Node<OccupancyNodeRGB> setNodeColor(double x, double y, double z, uint8_t r, uint8_t g,
 																			uint8_t b, unsigned int depth = 0)
 	{
 		return setNodeColor(x, y, z, Color(r, g, b), depth);
@@ -170,7 +170,7 @@ public:
 		return averageNodeColor(coordToKey(coord, depth), color);
 	}
 
-	Node<OccupancyNodeRGB> averageNodeColor(float x, float y, float z, Color color,
+	Node<OccupancyNodeRGB> averageNodeColor(double x, double y, double z, Color color,
 																					unsigned int depth = 0)
 	{
 		return averageNodeColor(coordToKey(x, y, z, depth), color);
@@ -199,7 +199,7 @@ public:
 		return averageNodeColor(coord, Color(r, g, b), depth);
 	}
 
-	Node<OccupancyNodeRGB> averageNodeColor(float x, float y, float z, uint8_t r, uint8_t g,
+	Node<OccupancyNodeRGB> averageNodeColor(double x, double y, double z, uint8_t r, uint8_t g,
 																					uint8_t b, unsigned int depth = 0)
 	{
 		return averageNodeColor(x, y, z, Color(r, g, b), depth);
@@ -227,7 +227,7 @@ public:
 		return integrateColor(coordToKey(coord, depth), color);
 	}
 
-	Node<OccupancyNodeRGB> integrateColor(float x, float y, float z, Color color,
+	Node<OccupancyNodeRGB> integrateColor(double x, double y, double z, Color color,
 																				unsigned int depth = 0)
 	{
 		return integrateColor(coordToKey(x, y, z, depth), color);
@@ -255,7 +255,7 @@ public:
 		return integrateColor(coord, Color(r, g, b), depth);
 	}
 
-	Node<OccupancyNodeRGB> integrateColor(float x, float y, float z, uint8_t r, uint8_t g,
+	Node<OccupancyNodeRGB> integrateColor(double x, double y, double z, uint8_t r, uint8_t g,
 																				uint8_t b, unsigned int depth = 0)
 	{
 		return integrateColor(x, y, z, Color(r, g, b), depth);

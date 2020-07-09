@@ -10,10 +10,10 @@ namespace ufomap
 class Octree : public OctreeBase<OccupancyNode>
 {
 public:
-	Octree(float resolution = 0.1, unsigned int depth_levels = 16,
-				 bool automatic_pruning = true, float occupancy_thres = 0.5,
-				 float free_thres = 0.5, float prob_hit = 0.7, float prob_miss = 0.4,
-				 float clamping_thres_min = 0.1192, float clamping_thres_max = 0.971);
+	Octree(double resolution = 0.1, unsigned int depth_levels = 16,
+				 bool automatic_pruning = true, double occupancy_thres = 0.5,
+				 double free_thres = 0.5, double prob_hit = 0.7, double prob_miss = 0.4,
+				 double clamping_thres_min = 0.1192, double clamping_thres_max = 0.971);
 
 	Octree(const std::string& filename);
 
@@ -69,7 +69,7 @@ public:
 
 	// 	std::string id;
 	// 	size_t size;
-	// 	float res;
+	// 	double res;
 	// 	unsigned int depth_levels;
 	// 	if (!readHeader(s, id, size, res, depth_levels, is_ufomap))
 	// 	{
@@ -95,7 +95,7 @@ protected:
 
 	virtual bool readBinaryNodesRecurs(std::istream& s, InnerNode<OccupancyNode>& node,
 																		 unsigned int current_depth,
-																		 float occupancy_thres_log, float free_thres_log,
+																		 double occupancy_thres_log, double free_thres_log,
 																		 bool from_octomap = false) override;
 
 	virtual bool writeBinaryNodesRecurs(std::ostream& s,

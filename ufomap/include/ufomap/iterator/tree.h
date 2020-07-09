@@ -141,7 +141,7 @@ protected:
 		}
 
 		Point3 center = this->tree_->keyToCoord(node.code.toKey());
-		float half_size = this->tree_->getNodeHalfSize(node.getDepth());
+		double half_size = this->tree_->getNodeHalfSize(node.getDepth());
 		ufomap_geometry::AABB aabb(center - half_size, center + half_size);
 
 		if constexpr (hasBegin<BOUNDING_TYPE>::value && hasEnd<BOUNDING_TYPE>::value)

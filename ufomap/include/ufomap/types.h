@@ -19,7 +19,7 @@ public:
 	{
 	}
 
-	Point3RGB(float x, float y, float z, uint8_t r, uint8_t g, uint8_t b)
+	Point3RGB(double x, double y, double z, uint8_t r, uint8_t g, uint8_t b)
 		: Point3(x, y, z), color_(r, g, b)
 	{
 	}
@@ -28,7 +28,7 @@ public:
 	{
 	}
 
-	Point3RGB(float x, float y, float z) : Point3(x, y, z), color_(255, 255, 255)
+	Point3RGB(double x, double y, double z) : Point3(x, y, z), color_(255, 255, 255)
 	{
 	}
 
@@ -82,11 +82,11 @@ public:
 	{
 	}
 
-	Point3I(const Point3& point, float intensity) : Point3(point), intensity_(intensity)
+	Point3I(const Point3& point, double intensity) : Point3(point), intensity_(intensity)
 	{
 	}
 
-	Point3I(float x, float y, float z, float intensity)
+	Point3I(double x, double y, double z, double intensity)
 		: Point3(x, y, z), intensity_(intensity)
 	{
 	}
@@ -95,11 +95,11 @@ public:
 	{
 	}
 
-	Point3I(float x, float y, float z) : Point3(x, y, z), intensity_(0.0)
+	Point3I(double x, double y, double z) : Point3(x, y, z), intensity_(0.0)
 	{
 	}
 
-	Point3I(float intensity) : Point3(0, 0, 0), intensity_(intensity)
+	Point3I(double intensity) : Point3(0, 0, 0), intensity_(intensity)
 	{
 	}
 
@@ -110,23 +110,23 @@ public:
 		return *this;
 	}
 
-	float getIntensity() const
+	double getIntensity() const
 	{
 		return intensity_;
 	}
 
-	float& getIntensity()
+	double& getIntensity()
 	{
 		return intensity_;
 	}
 
-	void setIntesity(float new_intensity)
+	void setIntesity(double new_intensity)
 	{
 		intensity_ = new_intensity;
 	}
 
 protected:
-	float intensity_;
+	double intensity_;
 };
 }  // namespace ufomap
 

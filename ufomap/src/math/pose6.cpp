@@ -20,12 +20,12 @@ Pose6::Pose6(const Vector3& translation, const Quaternion& rotation)
 {
 }
 
-Pose6::Pose6(float x, float y, float z, float roll, float pitch, float yaw)
+Pose6::Pose6(double x, double y, double z, double roll, double pitch, double yaw)
 	: translation_(x, y, z), rotation_(roll, pitch, yaw)
 {
 }
 
-Pose6::Pose6(float t_x, float t_y, float t_z, float r_w, float r_x, float r_y, float r_z)
+Pose6::Pose6(double t_x, double t_y, double t_z, double r_w, double r_x, double r_y, double r_z)
 	: translation_(t_x, t_y, t_z), rotation_(r_w, r_x, r_y, r_z)
 {
 }
@@ -63,40 +63,40 @@ Quaternion Pose6::rotation() const
 	return rotation_;
 }
 
-float& Pose6::x()
+double& Pose6::x()
 {
 	return translation_[0];
 }
-float Pose6::x() const
+double Pose6::x() const
 {
 	return translation_[0];
 }
-float& Pose6::y()
+double& Pose6::y()
 {
 	return translation_[1];
 }
-float Pose6::y() const
+double Pose6::y() const
 {
 	return translation_[1];
 }
-float& Pose6::z()
+double& Pose6::z()
 {
 	return translation_[2];
 }
-float Pose6::z() const
+double Pose6::z() const
 {
 	return translation_[2];
 }
 
-float Pose6::roll() const
+double Pose6::roll() const
 {
 	return rotation_.toEuler()[0];
 }
-float Pose6::pitch() const
+double Pose6::pitch() const
 {
 	return rotation_.toEuler()[1];
 }
-float Pose6::yaw() const
+double Pose6::yaw() const
 {
 	return rotation_.toEuler()[2];
 }
@@ -137,7 +137,7 @@ Pose6& Pose6::operator*=(const Pose6& other)
 	return *this;
 }
 
-float Pose6::distance(const Pose6& other) const
+double Pose6::distance(const Pose6& other) const
 {
 	double dist_x = x() - other.x();
 	double dist_y = y() - other.y();
@@ -145,7 +145,7 @@ float Pose6::distance(const Pose6& other) const
 	return sqrt((dist_x * dist_x) + (dist_y * dist_y) + (dist_z * dist_z));
 }
 
-float Pose6::translationLength() const
+double Pose6::translationLength() const
 {
 	return sqrt((x() * x()) + (y() * y()) + (z() * z()));
 }

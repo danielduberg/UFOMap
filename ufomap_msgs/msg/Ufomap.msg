@@ -8,16 +8,16 @@ bool binary
 string id
 
 # Resolution (in m) of the smallest Octree nodes
-float32 resolution
+float64 resolution
 
 # Number of depth levels
 uint8 depth_levels # Should be uint8
 
 # Occupancy threshold
-float32 occupancy_thres
+float64 occupancy_thres
 
 # Free threshold
-float32 free_thres
+float64 free_thres
 
 # If data is compressed
 bool compressed

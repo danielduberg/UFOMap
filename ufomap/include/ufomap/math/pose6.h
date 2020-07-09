@@ -14,8 +14,8 @@ public:
 
 	Pose6(const Pose6& other);
 	Pose6(const Vector3& translation, const Quaternion& rotation);
-	Pose6(float x, float y, float z, float roll, float pitch, float yaw);
-	Pose6(float t_x, float t_y, float t_z, float r_w, float r_x, float r_y, float r_z);
+	Pose6(double x, double y, double z, double roll, double pitch, double yaw);
+	Pose6(double t_x, double t_y, double t_z, double r_w, double r_x, double r_y, double r_z);
 
 	Pose6& operator=(const Pose6& other);
 
@@ -27,16 +27,16 @@ public:
 	Quaternion& rotation();
 	Quaternion rotation() const;
 
-	float& x();
-	float x() const;
-	float& y();
-	float y() const;
-	float& z();
-	float z() const;
+	double& x();
+	double x() const;
+	double& y();
+	double y() const;
+	double& z();
+	double z() const;
 
-	float roll() const;
-	float pitch() const;
-	float yaw() const;
+	double roll() const;
+	double pitch() const;
+	double yaw() const;
 
 	Vector3 transform(const Vector3& v) const;
 
@@ -47,9 +47,9 @@ public:
 
 	Pose6& operator*=(const Pose6& other);
 
-	float distance(const Pose6& other) const;
+	double distance(const Pose6& other) const;
 
-	float translationLength() const;
+	double translationLength() const;
 
 private:
 	Vector3 translation_;

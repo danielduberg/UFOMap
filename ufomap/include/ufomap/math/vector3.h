@@ -13,7 +13,7 @@ public:
 	Vector3() : data_{ 0.0, 0.0, 0.0 }
 	{
 	}
-	Vector3(float x, float y, float z) : data_{ x, y, z }
+	Vector3(double x, double y, double z) : data_{ x, y, z }
 	{
 	}
 	Vector3(const Vector3& other) : data_{ other.data_[0], other.data_[1], other.data_[2] }
@@ -40,80 +40,80 @@ public:
 				(first.data_[0] * second.data_[1]) - (first.data_[1] * second.data_[0]));
 	}
 
-	float dot(const Vector3& other) const
+	double dot(const Vector3& other) const
 	{
 		return dot(*this, other);
 	}
-	static float dot(const Vector3& first, const Vector3& second)
+	static double dot(const Vector3& first, const Vector3& second)
 	{
 		return (first.data_[0] * second.data_[0]) + (first.data_[1] * second.data_[1]) +
 					 (first.data_[2] * second.data_[2]);
 	}
 
-	float& operator()(size_t idx)
+	double& operator()(size_t idx)
 	{
 		return data_[idx];
 	}
 
-	const float& operator()(size_t idx) const
+	const double& operator()(size_t idx) const
 	{
 		return data_[idx];
 	}
-	float& operator[](size_t idx)
+	double& operator[](size_t idx)
 	{
 		return data_[idx];
 	}
-	const float& operator[](size_t idx) const
+	const double& operator[](size_t idx) const
 	{
 		return data_[idx];
 	}
 
-	float& x()
+	double& x()
 	{
 		return data_[0];
 	}
-	const float& x() const
+	const double& x() const
 	{
 		return data_[0];
 	}
-	float& y()
+	double& y()
 	{
 		return data_[1];
 	}
-	const float& y() const
+	const double& y() const
 	{
 		return data_[1];
 	}
-	float& z()
+	double& z()
 	{
 		return data_[2];
 	}
-	const float& z() const
+	const double& z() const
 	{
 		return data_[2];
 	}
 
-	float& roll()
+	double& roll()
 	{
 		return data_[0];
 	}
-	const float& roll() const
+	const double& roll() const
 	{
 		return data_[0];
 	}
-	float& pitch()
+	double& pitch()
 	{
 		return data_[1];
 	}
-	const float& pitch() const
+	const double& pitch() const
 	{
 		return data_[1];
 	}
-	float& yaw()
+	double& yaw()
 	{
 		return data_[2];
 	}
-	const float& yaw() const
+	const double& yaw() const
 	{
 		return data_[2];
 	}
@@ -128,7 +128,7 @@ public:
 		return Vector3(data_[0] - other.data_[0], data_[1] - other.data_[1],
 									 data_[2] - other.data_[2]);
 	}
-	Vector3 operator-(float value) const
+	Vector3 operator-(double value) const
 	{
 		return Vector3(data_[0] - value, data_[1] - value, data_[2] - value);
 	}
@@ -137,7 +137,7 @@ public:
 		return Vector3(data_[0] + other.data_[0], data_[1] + other.data_[1],
 									 data_[2] + other.data_[2]);
 	}
-	Vector3 operator+(float value) const
+	Vector3 operator+(double value) const
 	{
 		return Vector3(data_[0] + value, data_[1] + value, data_[2] + value);
 	}
@@ -146,7 +146,7 @@ public:
 		return Vector3(data_[0] * other.data_[0], data_[1] * other.data_[1],
 									 data_[2] * other.data_[2]);
 	}
-	Vector3 operator*(float value) const
+	Vector3 operator*(double value) const
 	{
 		return Vector3(data_[0] * value, data_[1] * value, data_[2] * value);
 	}
@@ -155,7 +155,7 @@ public:
 		return Vector3(data_[0] / other.data_[0], data_[1] / other.data_[1],
 									 data_[2] / other.data_[2]);
 	}
-	Vector3 operator/(float value) const
+	Vector3 operator/(double value) const
 	{
 		return Vector3(data_[0] / value, data_[1] / value, data_[2] / value);
 	}
@@ -185,25 +185,25 @@ public:
 		data_[2] /= other.data_[2];
 	}
 
-	void operator-=(float value)
+	void operator-=(double value)
 	{
 		data_[0] -= value;
 		data_[1] -= value;
 		data_[2] -= value;
 	}
-	void operator+=(float value)
+	void operator+=(double value)
 	{
 		data_[0] += value;
 		data_[1] += value;
 		data_[2] += value;
 	}
-	void operator*=(float value)
+	void operator*=(double value)
 	{
 		data_[0] *= value;
 		data_[1] *= value;
 		data_[2] *= value;
 	}
-	void operator/=(float value)
+	void operator/=(double value)
 	{
 		data_[0] /= value;
 		data_[1] /= value;
@@ -221,11 +221,11 @@ public:
 					 data_[2] != other.data_[2];
 	}
 
-	float norm() const
+	double norm() const
 	{
 		return std::sqrt(squaredNorm());
 	}
-	float squaredNorm() const
+	double squaredNorm() const
 	{
 		return (data_[0] * data_[0]) + (data_[1] * data_[1]) + (data_[2] * data_[2]);
 	}
@@ -241,22 +241,22 @@ public:
 		return temp.normalize();
 	}
 
-	float angleTo(const Vector3& other) const
+	double angleTo(const Vector3& other) const
 	{
 		return std::acos(dot(other) / (norm() * other.norm()));
 	}
 
-	float distance(const Vector3& other) const
+	double distance(const Vector3& other) const
 	{
-		float x = data_[0] - other.data_[0];
-		float y = data_[1] - other.data_[1];
-		float z = data_[2] - other.data_[2];
+		double x = data_[0] - other.data_[0];
+		double y = data_[1] - other.data_[1];
+		double z = data_[2] - other.data_[2];
 		return sqrt((x * x) + (y * y) + (z * z));
 	}
-	float distanceXY(const Vector3& other) const
+	double distanceXY(const Vector3& other) const
 	{
-		float x = data_[0] - other.data_[0];
-		float y = data_[1] - other.data_[1];
+		double x = data_[0] - other.data_[0];
+		double y = data_[1] - other.data_[1];
 		return sqrt((x * x) + (y * y));
 	}
 
@@ -265,11 +265,11 @@ public:
 		return 3;
 	}
 
-	float min() const
+	double min() const
 	{
 		return std::min(std::min(data_[0], data_[1]), data_[2]);
 	}
-	float max() const
+	double max() const
 	{
 		return std::max(std::max(data_[0], data_[1]), data_[2]);
 	}
@@ -368,7 +368,7 @@ public:
 	}
 
 protected:
-	float data_[3];
+	double data_[3];
 };
 }  // namespace ufomap_math
 
