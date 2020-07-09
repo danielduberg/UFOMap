@@ -124,15 +124,18 @@ void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloudRGB& cloud_
 	sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud_in, "x");
 	sensor_msgs::PointCloud2ConstIterator<float> iter_y(*cloud_in, "y");
 	sensor_msgs::PointCloud2ConstIterator<float> iter_z(*cloud_in, "z");
-	sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_rgb(*cloud_in, "rgb");
+	sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_r(*cloud_in, "r");
+	sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_g(*cloud_in, "g");
+	sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_b(*cloud_in, "b");
 
-	for (int i = 0; iter_x != iter_x.end(); ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_rgb)
+	for (int i = 0; iter_x != iter_x.end();
+			 ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_r, ++iter_g, ++iter_b)
 	{
 		if (!std::isnan(*iter_x) && !std::isnan(*iter_y) && !std::isnan(*iter_z) &&
-				!std::isnan(iter_rgb[0]) && !std::isnan(iter_rgb[1]) && !std::isnan(iter_rgb[2]))
+				!std::isnan(*iter_r) && !std::isnan(*iter_g) && !std::isnan(*iter_b))
 		{
 			cloud_out.push_back(
-					Point3RGB(*iter_x, *iter_y, *iter_z, iter_rgb[2], iter_rgb[1], iter_rgb[0]));
+					Point3RGB(*iter_x, *iter_y, *iter_z, *iter_r, *iter_g, *iter_b));
 		}
 	}
 }
@@ -160,17 +163,19 @@ void fromUfomap(const PointCloudRGB& cloud_in, sensor_msgs::PointCloud2::Ptr clo
 	sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_out, "x");
 	sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud_out, "y");
 	sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud_out, "z");
-	sensor_msgs::PointCloud2Iterator<uint8_t> iter_rgb(*cloud_out, "rgb");
+	sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*cloud_out, "r");
+	sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*cloud_out, "g");
+	sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*cloud_out, "b");
 
 	for (unsigned int i = 0; i < cloud_in.size();
-			 ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_rgb)
+			 ++i, ++iter_x, ++iter_y, ++iter_z, ++iter_r, ++iter_g, ++iter_b)
 	{
 		*iter_x = cloud_in[i][0];
 		*iter_y = cloud_in[i][1];
 		*iter_z = cloud_in[i][2];
-		iter_rgb[2] = cloud_in[i].getColor().r;
-		iter_rgb[1] = cloud_in[i].getColor().g;
-		iter_rgb[0] = cloud_in[i].getColor().b;
+		*iter_r = cloud_in[i].getColor().r;
+		*iter_g = cloud_in[i].getColor().g;
+		*iter_b = cloud_in[i].getColor().b;
 	}
 }
 
