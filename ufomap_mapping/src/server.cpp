@@ -1,10 +1,12 @@
+#include <future>
+
 #include "ufomap_mapping/server.hpp"
 
 #include "ufomap_msgs/msg/ufomap.hpp"
 #include "ufomap_msgs/conversions.h"
 #include "ufomap_ros/conversions.h"
+#include "tf2_ros/buffer_interface.h"
 
-#include <future>
 
 using std::placeholders::_1;
 
@@ -109,7 +111,7 @@ void UFOMapServer::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr 
 		// ufomap::toUfomap(msg, cloud);
 
 		auto a1 = std::async(std::launch::async, [this, &msg] {
-		 	return tf_buffer_->lookupTransform(frame_id_, msg->header.frame_id,tf2::TimePointZero);
+		 	return tf_buffer_->lookupTransform(frame_id_, msg->header.frame_id, tf2_ros::fromMsg(msg->header.stamp));
 		// 																		rclcpp::Time(msg->header.stamp), transform_timeout_);
 		});
                                       
