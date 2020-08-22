@@ -1,47 +1,102 @@
-#include <ufomap_mapping/server.h>
+#include "ufomap_mapping/server.hpp"
 
-#include <ufomap_msgs/Ufomap.h>
-#include <ufomap_msgs/conversions.h>
-#include <ufomap_ros/conversions.h>
+#include "ufomap_msgs/msg/ufomap.hpp"
+#include "ufomap_msgs/conversions.h"
+#include "ufomap_ros/conversions.h"
 
 #include <future>
 
+using std::placeholders::_1;
+
 namespace ufomap_mapping
 {
-UFOMapServer::UFOMapServer(ros::NodeHandle& nh, ros::NodeHandle& nh_priv)
-	: nh_(nh)
-	, nh_priv_(nh_priv)
-	, map_pub_(nh_priv.advertise<ufomap_msgs::Ufomap>(
-				"map", nh_priv.param("map_queue_size", 10), nh_priv.param("map_latch", false)))
-	, map_binary_pub_(nh_priv.advertise<ufomap_msgs::Ufomap>(
-				"map_binary", nh_priv.param("map_binary_queue_size", 10),
-				nh_priv.param("map_binary_latch", false)))
-	, cloud_pub_(nh_priv.advertise<sensor_msgs::PointCloud2>(
-				"map_cloud", nh_priv.param("map_cloud_queue_size", 10),
-				nh_priv.param("map_cloud_latch", false)))
-	, tf_listener_(tf_buffer_)
-	, cs_(nh_priv)
-	, map_(nh_priv.param("resolution", 0.1), nh_priv.param("depth_levels", 16),
-				 !nh_priv.param("multithreaded", false))
+
+UFOMapServer::UFOMapServer()
+: Node("ufomap_server"),
+  transform_timeout_(0)
 {
-	// Set up dynamic reconfigure server
-	f_ = boost::bind(&UFOMapServer::configCallback, this, _1, _2);
-	cs_.setCallback(f_);
+  // Parameters declaration
+  declare_parameter("map_queue_size", 1);
+  declare_parameter("map_latch", false);
+  declare_parameter("map_binary_queue_size", 1);
+  declare_parameter("map_binary_latch", false);
+  declare_parameter("map_cloud_queue_size", 1);
+  declare_parameter("map_cloud_latch", false);
+  declare_parameter("resolution", 0.1);
+  declare_parameter("depth_levels", 16);
+  declare_parameter("multithreaded", false);
+  declare_parameter("frame_id", "map");
+  declare_parameter("max_range", 7.0);
+  declare_parameter("insert_discrete", true);
+  declare_parameter("insert_depth", 0);
+  declare_parameter("insert_n", 0);
+  declare_parameter("clear_robot", true);
+  declare_parameter("robot_height", 0.2);
+  declare_parameter("robot_radius", 0.5);
+  declare_parameter("pub_rate", 1.0);
+  declare_parameter("transform_timeout", 0.1);
+  declare_parameter("cloud_in_queue_size", 10);
 
-	cloud_sub_ = nh.subscribe("cloud_in", nh_priv.param("cloud_in_queue_size", 10),
-														&UFOMapServer::cloudCallback, this);
+  // Parameters reading
+  frame_id_ = get_parameter("frame_id").as_string();
+  max_range_ = get_parameter("max_range").as_double();
+  insert_discrete_ = get_parameter("insert_discrete").as_bool();
+  insert_depth_ = get_parameter("insert_depth").as_int();
+  insert_n_ = get_parameter("insert_n").as_int();
+  clear_robot_enabled_ = get_parameter("clear_robot").as_bool();
+  robot_height_ = get_parameter("robot_height").as_double();
+  robot_radius_ = get_parameter("robot_radius").as_double();
+  pub_rate_ = get_parameter("pub_rate").as_double();
+  cloud_in_queue_size_ = get_parameter("cloud_in_queue_size").as_int();
+  map_queue_size_ = get_parameter("map_queue_size").as_int();
+  map_binary_queue_size_ = get_parameter("map_binary_queue_size").as_int();
+  map_cloud_queue_size_ = get_parameter("map_cloud_queue_size").as_int();
 
+  // Publishers
+  rclcpp::QoS map_pub_qos(map_queue_size_);
+  if (get_parameter("map_latch").as_bool()) {
+    map_pub_qos.transient_local();
+  }
+  map_pub_ = create_publisher<ufomap_msgs::msg::Ufomap>("map", map_pub_qos);
+
+  rclcpp::QoS map_binary_pub_qos(map_binary_queue_size_);
+  if (get_parameter("map_binary_latch").as_bool()) {
+    map_binary_pub_qos.transient_local();
+  }
+  map_binary_pub_ = create_publisher<ufomap_msgs::msg::Ufomap>("map_binary", map_binary_pub_qos);
+
+  rclcpp::QoS map_cloud_pub_qos(map_cloud_queue_size_);
+  if (get_parameter("map_cloud_latch").as_bool()) {
+    map_cloud_pub_qos.transient_local();
+  }
+  cloud_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("map_cloud", map_cloud_pub_qos);
+
+  // Subscribers
+  cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+    "cloud_in",
+    get_parameter("cloud_in_queue_size").as_int(),
+    std::bind(&UFOMapServer::cloudCallback, this, _1));
+  
+  // TF2 Listener
+  tf_buffer_ = std::make_shared<tf2::BufferCore>();
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_, this, false);
+
+  // UFOMap
+  map_ = std::make_shared<ufomap::Octree>(
+    get_parameter("resolution").as_double(),
+    get_parameter("depth_levels").as_int(),
+    get_parameter("multithreaded").as_bool());
+
+  // Timer initialization
 	if (0 < pub_rate_)
 	{
-		pub_timer_ =
-				nh_priv.createTimer(ros::Rate(pub_rate_), &UFOMapServer::timerCallback, this);
+    pub_timer_ = create_wall_timer(
+      rclcpp::Rate(pub_rate_).period(), std::bind(&UFOMapServer::timerCallback, this));
 	}
-
-	// TODO: Enable services
 }
 
 // Private functions
-void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
+void UFOMapServer::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
 	try
 	{
@@ -54,9 +109,10 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 		// ufomap::toUfomap(msg, cloud);
 
 		auto a1 = std::async(std::launch::async, [this, &msg] {
-			return tf_buffer_.lookupTransform(frame_id_, msg->header.frame_id,
-																				msg->header.stamp, transform_timeout_);
+		 	return tf_buffer_->lookupTransform(frame_id_, msg->header.frame_id,tf2::TimePointZero);
+		// 																		rclcpp::Time(msg->header.stamp), transform_timeout_);
 		});
+                                      
 		auto a2 =
 				std::async(std::launch::async, [&msg, &cloud] { ufomap::toUfomap(msg, cloud); });
 
@@ -65,12 +121,12 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 		cloud.transform(transform);
 		if (insert_discrete_)
 		{
-			map_.insertPointCloudDiscrete(transform.translation(), cloud, max_range_, insert_n_,
+			map_->insertPointCloudDiscrete(transform.translation(), cloud, max_range_, insert_n_,
 																		insert_depth_);
 		}
 		else
 		{
-			map_.insertPointCloud(transform.translation(), cloud, max_range_);
+			map_->insertPointCloud(transform.translation(), cloud, max_range_);
 		}
 
 		if (clear_robot_enabled_)
@@ -81,101 +137,56 @@ void UFOMapServer::cloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 			ufomap::Point3 robot_bbx_max(transform.x() + robot_radius_,
 																	 transform.y() + robot_radius_,
 																	 transform.z() + (robot_height_ / 2.0));
-			map_.clearAreaBBX(robot_bbx_min, robot_bbx_max, 0);
+			map_->clearAreaBBX(robot_bbx_min, robot_bbx_max, 0);
 		}
 	}
 	catch (tf2::TransformException& ex)
 	{
-		ROS_WARN_THROTTLE(1, "%s", ex.what());
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1, "%s", ex.what());
 	}
 }
 
-void UFOMapServer::timerCallback(const ros::TimerEvent& event)
+void UFOMapServer::timerCallback()
 {
-	std_msgs::Header header;
-	header.stamp = ros::Time::now();
+	std_msgs::msg::Header header;
+	header.stamp = now();
 	header.frame_id = frame_id_;
 
-	if (0 < map_pub_.getNumSubscribers() || map_pub_.isLatched())
+	if (0 < map_pub_->get_subscription_count() ||
+    map_pub_->get_actual_qos().get_rmw_qos_profile().durability ==
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)
 	{
-		ufomap_msgs::Ufomap msg;
-		ufomap_msgs::mapToMsg(map_, msg, false);
+		ufomap_msgs::msg::Ufomap msg;
+		ufomap_msgs::mapToMsg(*map_, msg, false);
 		msg.header = header;
-		map_pub_.publish(msg);
+		map_pub_->publish(msg);
 	}
 
-	if (0 < map_binary_pub_.getNumSubscribers() || map_binary_pub_.isLatched())
-	{
-		ufomap_msgs::Ufomap msg;
-		ufomap_msgs::mapToMsg(map_, msg, false, true);
+	if (0 < map_binary_pub_->get_subscription_count() ||
+    map_binary_pub_->get_actual_qos().get_rmw_qos_profile().durability ==
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL) 
+  {
+		ufomap_msgs::msg::Ufomap msg;
+		ufomap_msgs::mapToMsg(*map_, msg, false, true);
 		msg.header = header;
-		map_binary_pub_.publish(msg);
+		map_binary_pub_->publish(msg);
 	}
 
-	if (0 < cloud_pub_.getNumSubscribers() || cloud_pub_.isLatched())
+	if (0 < cloud_pub_->get_subscription_count() ||
+    cloud_pub_->get_actual_qos().get_rmw_qos_profile().durability ==
+    RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL)
 	{
 		ufomap::PointCloud cloud;
-		for (auto it = map_.begin_leafs(true, false, false, false, 0),
-							it_end = map_.end_leafs();
+		for (auto it = map_->begin_leafs(true, false, false, false, 0),
+							it_end = map_->end_leafs();
 				 it != it_end; ++it)
 		{
 			cloud.push_back(it.getCenter());
 		}
-		sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
+		sensor_msgs::msg::PointCloud2::Ptr cloud_msg(new sensor_msgs::msg::PointCloud2);
 		ufomap::fromUfomap(cloud, cloud_msg);
 		cloud_msg->header = header;
-		cloud_pub_.publish(cloud_msg);
-	}
-}
-
-void UFOMapServer::configCallback(ufomap_mapping::ServerConfig& config, uint32_t level)
-{
-	frame_id_ = config.frame_id;
-	max_range_ = config.max_range;
-	insert_discrete_ = config.insert_discrete;
-	insert_depth_ = config.insert_depth;
-	insert_n_ = config.insert_n;
-	clear_robot_enabled_ = config.clear_robot;
-	robot_height_ = config.robot_height;
-	robot_radius_ = config.robot_radius;
-
-	if (pub_rate_ != config.pub_rate)
-	{
-		pub_rate_ = config.pub_rate;
-		if (0 < pub_rate_)
-		{
-			pub_timer_ =
-					nh_priv_.createTimer(ros::Rate(pub_rate_), &UFOMapServer::timerCallback, this);
-		}
-	}
-
-	transform_timeout_.fromSec(config.transform_timeout);
-
-	if (cloud_in_queue_size_ != config.cloud_in_queue_size)
-	{
-		cloud_sub_ = nh_.subscribe("cloud_in", config.cloud_in_queue_size,
-															 &UFOMapServer::cloudCallback, this);
-	}
-
-	if (map_pub_.isLatched() != config.map_latch ||
-			map_queue_size_ != config.map_queue_size)
-	{
-		map_pub_ = nh_priv_.advertise<ufomap_msgs::Ufomap>("map", config.map_queue_size,
-																											 config.map_latch);
-	}
-
-	if (map_binary_pub_.isLatched() != config.map_binary_latch ||
-			map_binary_queue_size_ != config.map_binary_queue_size)
-	{
-		map_binary_pub_ = nh_priv_.advertise<ufomap_msgs::Ufomap>(
-				"map_binary", config.map_binary_queue_size, config.map_binary_latch);
-	}
-
-	if (cloud_pub_.isLatched() != config.map_cloud_latch ||
-			map_cloud_queue_size_ != config.map_cloud_queue_size)
-	{
-		cloud_pub_ = nh_priv_.advertise<sensor_msgs::PointCloud2>(
-				"map_cloud", config.map_cloud_queue_size, config.map_cloud_latch);
+		cloud_pub_->publish(*cloud_msg);
 	}
 }
 

@@ -1,13 +1,15 @@
-#include <ufomap/types.h>
-#include <ufomap_ros/conversions.h>
+#include "ufomap/types.h"
+#include "ufomap_ros/conversions.h"
 
-#include <sensor_msgs/point_cloud2_iterator.h>
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include "sensor_msgs/point_cloud2_iterator.hpp"
+#include "sensor_msgs/impl/point_cloud2_iterator.hpp"
 
 // TODO: Add support for intensity?
 
 namespace ufomap
 {
-void getFields(sensor_msgs::PointCloud2::ConstPtr cloud, bool& has_x, bool& has_y,
+void getFields(sensor_msgs::msg::PointCloud2::ConstPtr cloud, bool& has_x, bool& has_y,
 							 bool& has_z, bool& has_rgb, bool& has_i)
 {
 	has_x = false;
@@ -53,7 +55,7 @@ void getFields(sensor_msgs::PointCloud2::ConstPtr cloud, bool& has_x, bool& has_
 	}
 }
 
-void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloud& cloud_out)
+void toUfomap(sensor_msgs::msg::PointCloud2::ConstPtr cloud_in, PointCloud& cloud_out)
 {
 	cloud_out.reserve(cloud_in->data.size() / cloud_in->point_step);
 
@@ -78,7 +80,7 @@ void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloud& cloud_out
 	}
 }
 
-void fromUfomap(const PointCloud& cloud_in, sensor_msgs::PointCloud2::Ptr cloud_out)
+void fromUfomap(const PointCloud& cloud_in, sensor_msgs::msg::PointCloud2::Ptr cloud_out)
 {
 	bool has_x, has_y, has_z, has_rgb, has_i;
 	getFields(cloud_out, has_x, has_y, has_z, has_rgb, has_i);
@@ -105,7 +107,7 @@ void fromUfomap(const PointCloud& cloud_in, sensor_msgs::PointCloud2::Ptr cloud_
 	}
 }
 
-void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloudRGB& cloud_out)
+void toUfomap(sensor_msgs::msg::PointCloud2::ConstPtr cloud_in, PointCloudRGB& cloud_out)
 {
 	cloud_out.reserve(cloud_in->data.size() / cloud_in->point_step);
 
@@ -138,7 +140,7 @@ void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloudRGB& cloud_
 	}
 }
 
-void fromUfomap(const PointCloudRGB& cloud_in, sensor_msgs::PointCloud2::Ptr cloud_out)
+void fromUfomap(const PointCloudRGB& cloud_in, sensor_msgs::msg::PointCloud2::Ptr cloud_out)
 {
 	bool has_x, has_y, has_z, has_rgb, has_i;
 	getFields(cloud_out, has_x, has_y, has_z, has_rgb, has_i);
@@ -175,7 +177,7 @@ void fromUfomap(const PointCloudRGB& cloud_in, sensor_msgs::PointCloud2::Ptr clo
 	}
 }
 
-void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloudI& cloud_out)
+void toUfomap(sensor_msgs::msg::PointCloud2::ConstPtr cloud_in, PointCloudI& cloud_out)
 {
 	cloud_out.reserve(cloud_in->data.size() / cloud_in->point_step);
 
@@ -206,7 +208,7 @@ void toUfomap(sensor_msgs::PointCloud2::ConstPtr cloud_in, PointCloudI& cloud_ou
 	}
 }
 
-void fromUfomap(const PointCloudI& cloud_in, sensor_msgs::PointCloud2::Ptr cloud_out)
+void fromUfomap(const PointCloudI& cloud_in, sensor_msgs::msg::PointCloud2::Ptr cloud_out)
 {
 	bool has_x, has_y, has_z, has_rgb, has_i;
 	getFields(cloud_out, has_x, has_y, has_z, has_rgb, has_i);
@@ -242,35 +244,35 @@ void fromUfomap(const PointCloudI& cloud_in, sensor_msgs::PointCloud2::Ptr cloud
 }
 
 // Vector3
-void toUfomap(const geometry_msgs::Vector3& vector3_in, ufomap_math::Vector3& vector3_out)
+void toUfomap(const geometry_msgs::msg::Vector3& vector3_in, ufomap_math::Vector3& vector3_out)
 {
 	vector3_out.x() = vector3_in.x;
 	vector3_out.y() = vector3_in.y;
 	vector3_out.z() = vector3_in.z;
 }
 
-ufomap_math::Vector3 toUfomap(const geometry_msgs::Vector3& vector3)
+ufomap_math::Vector3 toUfomap(const geometry_msgs::msg::Vector3& vector3)
 {
 	return ufomap_math::Vector3(vector3.x, vector3.y, vector3.z);
 }
 
 void fromUfomap(const ufomap_math::Vector3& vector3_in,
-								geometry_msgs::Vector3& vector3_out)
+								geometry_msgs::msg::Vector3& vector3_out)
 {
 	vector3_out.x = vector3_in.x();
 	vector3_out.y = vector3_in.y();
 	vector3_out.z = vector3_in.z();
 }
 
-geometry_msgs::Vector3 fromUfomap(const ufomap_math::Vector3& vector3)
+geometry_msgs::msg::Vector3 fromUfomap(const ufomap_math::Vector3& vector3)
 {
-	geometry_msgs::Vector3 vector3_out;
+	geometry_msgs::msg::Vector3 vector3_out;
 	fromUfomap(vector3, vector3_out);
 	return vector3_out;
 }
 
 // Quaternion
-void toUfomap(const geometry_msgs::Quaternion& quaternion_in,
+void toUfomap(const geometry_msgs::msg::Quaternion& quaternion_in,
 							ufomap_math::Quaternion& quaternion_out)
 {
 	quaternion_out.x() = quaternion_in.x;
@@ -279,13 +281,13 @@ void toUfomap(const geometry_msgs::Quaternion& quaternion_in,
 	quaternion_out.w() = quaternion_in.w;
 }
 
-ufomap_math::Quaternion toUfomap(const geometry_msgs::Quaternion& quaternion)
+ufomap_math::Quaternion toUfomap(const geometry_msgs::msg::Quaternion& quaternion)
 {
 	return ufomap_math::Quaternion(quaternion.w, quaternion.x, quaternion.y, quaternion.z);
 }
 
 void fromUfomap(const ufomap_math::Quaternion& quaternion_in,
-								geometry_msgs::Quaternion& quaternion_out)
+								geometry_msgs::msg::Quaternion& quaternion_out)
 {
 	quaternion_out.x = quaternion_in.x();
 	quaternion_out.y = quaternion_in.y();
@@ -293,22 +295,22 @@ void fromUfomap(const ufomap_math::Quaternion& quaternion_in,
 	quaternion_out.w = quaternion_in.w();
 }
 
-geometry_msgs::Quaternion fromUfomap(const ufomap_math::Quaternion& quaternion)
+geometry_msgs::msg::Quaternion fromUfomap(const ufomap_math::Quaternion& quaternion)
 {
-	geometry_msgs::Quaternion quaternion_out;
+	geometry_msgs::msg::Quaternion quaternion_out;
 	fromUfomap(quaternion, quaternion_out);
 	return quaternion_out;
 }
 
 // Transforms
-void toUfomap(const geometry_msgs::Transform& transform_in,
+void toUfomap(const geometry_msgs::msg::Transform& transform_in,
 							ufomap_math::Pose6& transform_out)
 {
 	toUfomap(transform_in.translation, transform_out.translation());
 	toUfomap(transform_in.rotation, transform_out.rotation());
 }
 
-ufomap_math::Pose6 toUfomap(const geometry_msgs::Transform& transform)
+ufomap_math::Pose6 toUfomap(const geometry_msgs::msg::Transform& transform)
 {
 	return ufomap_math::Pose6(transform.translation.x, transform.translation.y,
 														transform.translation.z, transform.rotation.w,
@@ -317,15 +319,15 @@ ufomap_math::Pose6 toUfomap(const geometry_msgs::Transform& transform)
 }
 
 void fromUfomap(const ufomap_math::Pose6& transform_in,
-								geometry_msgs::Transform& transform_out)
+								geometry_msgs::msg::Transform& transform_out)
 {
 	fromUfomap(transform_in.translation(), transform_out.translation);
 	fromUfomap(transform_in.rotation(), transform_out.rotation);
 }
 
-geometry_msgs::Transform fromUfomap(const ufomap_math::Pose6& transform)
+geometry_msgs::msg::Transform fromUfomap(const ufomap_math::Pose6& transform)
 {
-	geometry_msgs::Transform transform_out;
+	geometry_msgs::msg::Transform transform_out;
 	fromUfomap(transform, transform_out);
 	return transform_out;
 }

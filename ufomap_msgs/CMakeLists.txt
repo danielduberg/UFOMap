@@ -3,38 +3,24 @@ project(ufomap_msgs)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  message_generation
-  std_msgs
-  ufomap
+find_package(ament_cmake REQUIRED)
+find_package(builtin_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(ufomap REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Ufomap.msg"
+  "msg/UfomapWithPose.msg"
+  "srv/GetUfomap.srv"
+  "srv/BoundingBoxQuery.srv"
+  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs
 )
 
-add_message_files(
-  FILES
-  Ufomap.msg
-  UfomapWithPose.msg
-)
+install(DIRECTORY include/ DESTINATION include/)
 
-add_service_files(
-  FILES
-  GetUfomap.srv
-  BoundingBoxQuery.srv
-)
+ament_export_include_directories(include)
+ament_export_dependencies(rosidl_default_runtime)
 
-generate_messages(
-  DEPENDENCIES
-  geometry_msgs
-  std_msgs
-)
-
-catkin_package(
-  INCLUDE_DIRS include
-  DEPENDS geometry_msgs message_runtime std_msgs
-)
-
-install(DIRECTORY include/
-  DESTINATION include
-  FILES_MATCHING PATTERN "*.h"
-  PATTERN ".svn" EXCLUDE
-)
+ament_package()

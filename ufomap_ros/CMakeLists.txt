@@ -3,40 +3,46 @@ project(ufomap_ros)
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(ufomap REQUIRED)
+find_package(ufomap_msgs REQUIRED)
+
+set(dependencies
+  rclcpp
   sensor_msgs
   ufomap
   ufomap_msgs
 )
 
-catkin_package(
-  INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
-  LIBRARIES ${PROJECT_NAME} ${catkin_LIBRARIES}
-  CATKIN_DEPENDS roscpp sensor_msgs ufomap ufomap_msgs
-)
-
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
 )
 
 add_library(${PROJECT_NAME}
   src/conversions.cpp
 )
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES}
+ament_target_dependencies(${PROJECT_NAME}
+  ${dependencies}
+)
+
+if(TARGET test_sensor_msgs)
+  rosidl_target_interfaces(${PROJECT_NAME} "rosidl_typesupport_cpp")
+endif()
+
+install(DIRECTORY include/
+  DESTINATION include/
 )
 
 install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-)
+ament_export_include_directories(include)
+ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(${dependencies})
+
+ament_package()

@@ -1,12 +1,12 @@
 #ifndef UFOMAP_MSGS_CONVERSIONS_H
 #define UFOMAP_MSGS_CONVERSIONS_H
 
-#include <ufomap_msgs/Ufomap.h>
+#include "ufomap_msgs/msg/ufomap.h"
 
 namespace ufomap_msgs
 {
 template <typename TreeType>
-bool msgToMap(const Ufomap& msg, TreeType& tree)
+bool msgToMap(const msg::Ufomap& msg, TreeType& tree)
 {
 	std::stringstream data_stream(std::ios_base::in | std::ios_base::out |
 																std::ios_base::binary);
@@ -29,7 +29,7 @@ bool msgToMap(const Ufomap& msg, TreeType& tree)
 }
 
 template <typename TreeType>
-bool mapToMsg(const TreeType& tree, Ufomap& msg, bool compress = false,
+bool mapToMsg(const TreeType& tree, msg::Ufomap& msg, bool compress = false,
 							bool binary = false)
 {
 	msg.binary = binary;
