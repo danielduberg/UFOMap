@@ -64,12 +64,7 @@ option(BUILD_DOC "Build documentation" ON)
 #   message("Doxygen need to be installed to generate the doxygen documentation")
 # endif (DOXYGEN_FOUND)
 
-find_package(catkin REQUIRED)
-catkin_package(
-  INCLUDE_DIRS include ${catkin_INCLUDE_DIRS} ${UFOMAP_INCLUDE_DIRS}
-  LIBRARIES ${PROJECT_NAME} ${catkin_LIBRARIES} ${OpenMP_LIBRARIES}
-  DEPENDS OpenMP LZ4
-)
+find_package(ament_cmake REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LZ4 REQUIRED liblz4)
@@ -77,7 +72,6 @@ pkg_check_modules(LZ4 REQUIRED liblz4)
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
   ${UFOMAP_INCLUDE_DIRS}
 )
 
@@ -90,18 +84,25 @@ add_library(${PROJECT_NAME}
 )
 target_compile_options(${PROJECT_NAME} PRIVATE ${OpenMP_FLAGS})
 target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES}
   ${OpenMP_LIBRARIES}
   ${LZ4_LIBRARIES}
 )
 
-install(TARGETS ${PROJECT_NAME}
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+install(DIRECTORY 
+  include/
+  ${UFOMAP_INCLUDE_DIRS}
+  DESTINATION include/
 )
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
+
+install(TARGETS
+  ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
+
+
+ament_export_include_directories(include ${UFOMAP_INCLUDE_DIRS})
+ament_export_libraries(${PROJECT_NAME})
+
+ament_package()

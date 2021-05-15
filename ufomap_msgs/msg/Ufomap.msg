@@ -1,5 +1,5 @@
 # A 3D map in binary format, as Octree
-Header header
+std_msgs/Header header
 
 # Flag to denote a binary (only free/occupied/unknown) or full occupancy Octree
 bool binary

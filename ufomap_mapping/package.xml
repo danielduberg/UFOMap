@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>ufomap_mapping</name>
   <version>1.0.0</version>
   <description>The ufomap_mapping package</description>
@@ -12,11 +12,10 @@
 
   <author email="dduberg@kth.se">Daniel Duberg</author>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <depend>dynamic_reconfigure</depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
-  <depend>nodelet</depend>
-  <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
@@ -29,6 +28,6 @@
 
 
   <export>
-    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
